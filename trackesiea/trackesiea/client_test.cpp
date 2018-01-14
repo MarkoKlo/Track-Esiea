@@ -82,6 +82,7 @@ int main(int argc, char** argv)
 	if (!menuBackground.data) // Sécurité
 	{
 		cout << "Impossible d'ouvrir le menu." << endl;
+		waitKey(0);
 		return -1;
 	}
 
@@ -89,6 +90,7 @@ int main(int argc, char** argv)
 	if (!menuBackground.data) // Sécurité
 	{
 		cout << "Impossible d'ouvrir l'image." << endl;
+		waitKey(0);
 		return -1;
 	}
 
