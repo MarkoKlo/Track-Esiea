@@ -18,6 +18,7 @@ Mat frame;
 
 int currentMode;
 Vec3b filterColour;
+int fthreshold;
 
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata)
 {
@@ -26,10 +27,10 @@ void onMouseEventMenu(int event, int x, int y, int flags, void* userdata)
 		if (x > 385 && x < 599 && y>571 && y < 607) { currentMode = -1;}
 		if (x > 89 && x < 550 && y>165 && y < 265) { currentMode = 1; destroyWindow("cam_show");}
 		if (x > 89 && x < 550 && y>296 && y < 374) { currentMode = 2; destroyWindow("image_show");
-		namedWindow("cam_show", WINDOW_NORMAL);
+		namedWindow("cam_show", WINDOW_AUTOSIZE);
 		}
 		if (x > 89 && x < 550 && y>426 && y < 505) { currentMode = 3; destroyWindow("image_show");
-		namedWindow("cam_show", WINDOW_NORMAL);
+		namedWindow("cam_show", WINDOW_AUTOSIZE);
 		}
 	}
 }
@@ -54,18 +55,22 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 
 void showfilteredCam(VideoCapture cap)
 {
-	cap.read(frame);
+	Mat fullframe;
+	cap.read(fullframe);
+	resize(fullframe, frame, Size(640, 360));
 	setMouseCallback("cam_show", onMouseEventFilteredCam, &frame);
-	if (!frame.empty())
+	
+	if (!fullframe.empty())
 	{
+		
 		Mat filteredFrame;
 		Mat erodedFrame;
 		Mat finalFrame;
-
-		inRange(frame, Scalar(filterColour.val[0]-45, filterColour.val[1] - 45, filterColour.val[2] - 45),
-			Scalar(filterColour.val[0] + 45, filterColour.val[1] + 45, filterColour.val[2] + 45), filteredFrame);
-		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2, 1, 1);
-		dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
+		createTrackbar("Tolerance", "cam_show", &fthreshold, 255, NULL);
+		inRange(frame, Scalar(filterColour.val[0]- fthreshold, filterColour.val[1] - fthreshold, filterColour.val[2] - fthreshold),
+		Scalar(filterColour.val[0] + fthreshold, filterColour.val[1] + fthreshold, filterColour.val[2] + fthreshold), filteredFrame);
+		erode(filteredFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
+		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
 
 		if (filterColour.val[0] == 0 && filterColour.val[1] == 0 && filterColour.val[2] == 0) 
 		{
@@ -108,6 +113,7 @@ int main(int argc, char** argv)
 
 	int input = 0;
 	currentMode = 0;
+	fthreshold = 0;
 	filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
 
