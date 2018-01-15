@@ -25,8 +25,12 @@ void onMouseEventMenu(int event, int x, int y, int flags, void* userdata)
 
 		if (x > 385 && x < 599 && y>571 && y < 607) { currentMode = -1;}
 		if (x > 89 && x < 550 && y>165 && y < 265) { currentMode = 1; destroyWindow("cam_show");}
-		if (x > 89 && x < 550 && y>296 && y < 374) { currentMode = 2; destroyWindow("image_show"); }
-		if (x > 89 && x < 550 && y>426 && y < 505) { currentMode = 3; }
+		if (x > 89 && x < 550 && y>296 && y < 374) { currentMode = 2; destroyWindow("image_show");
+		namedWindow("cam_show", WINDOW_NORMAL);
+		}
+		if (x > 89 && x < 550 && y>426 && y < 505) { currentMode = 3; destroyWindow("image_show");
+		namedWindow("cam_show", WINDOW_NORMAL);
+		}
 	}
 }
 
@@ -60,8 +64,8 @@ void showfilteredCam(VideoCapture cap)
 
 		inRange(frame, Scalar(filterColour.val[0]-45, filterColour.val[1] - 45, filterColour.val[2] - 45),
 			Scalar(filterColour.val[0] + 45, filterColour.val[1] + 45, filterColour.val[2] + 45), filteredFrame);
-		erode(filteredFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
-		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
+		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2, 1, 1);
+		dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
 
 		if (filterColour.val[0] == 0 && filterColour.val[1] == 0 && filterColour.val[2] == 0) 
 		{
