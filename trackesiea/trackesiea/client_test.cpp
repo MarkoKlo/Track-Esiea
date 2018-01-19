@@ -2,6 +2,7 @@
 //#include<opencv2\core\core.hpp>
 #include "client_test.h"
 #include<iostream>
+#include "windows.h"
 
 using namespace std;
 using namespace cv;
@@ -15,10 +16,13 @@ client_test::~client_test()
 }
 
 Mat frame;
+Mat finalFrame;
 
 int currentMode;
 Vec3b filterColour;
 int fthreshold;
+int showFilter;
+Vec2i trackedPos;
 
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata)
 {
@@ -48,9 +52,25 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 {
 	if (event == EVENT_LBUTTONUP)
 	{
-		if (filterColour.val[0] == 0 && filterColour.val[1] == 0 && filterColour.val[2] == 0) { filterColour = frame.at<Vec3b>(Point(x, y)); }
-		else { filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0; }
+		if (!showFilter) { filterColour = frame.at<Vec3b>(Point(x, y)); }
+		
 	}
+}
+
+void getWhitePos()
+{
+	int x = 0;
+	int y = 0;
+
+	for (int i = 0; i<36; i++)
+	{
+		for (int j = 0; i < 64; j++)
+		{
+			//Vec3b pColor = finalFrame.at<Vec3b>(j, i);
+		}
+	}
+
+	//return Vec2i(x, y);
 }
 
 void showfilteredCam(VideoCapture cap)
@@ -65,21 +85,24 @@ void showfilteredCam(VideoCapture cap)
 		
 		Mat filteredFrame;
 		Mat erodedFrame;
-		Mat finalFrame;
 		createTrackbar("Tolerance", "cam_show", &fthreshold, 255, NULL);
+		createTrackbar("filter", "cam_show", &showFilter, 1, NULL);
 		inRange(frame, Scalar(filterColour.val[0]- fthreshold, filterColour.val[1] - fthreshold, filterColour.val[2] - fthreshold),
 		Scalar(filterColour.val[0] + fthreshold, filterColour.val[1] + fthreshold, filterColour.val[2] + fthreshold), filteredFrame);
 		erode(filteredFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
 		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
-
-		if (filterColour.val[0] == 0 && filterColour.val[1] == 0 && filterColour.val[2] == 0) 
+		getWhitePos();
+		Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
+		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
+		if (showFilter) 
 		{
-			imshow("cam_show", frame);
-		}
-		else {
 			imshow("cam_show", finalFrame);
 		}
+		else {
+			imshow("cam_show", frame);
+		}
 	}
+	Sleep(33);
 }
 
 int main(int argc, char** argv)
@@ -87,12 +110,13 @@ int main(int argc, char** argv)
 	// cout est le flux de texte du terminal, '<<' permet d'injecter un élément dans cout, endl correspond à la fin de ligne
 	cout << "Track'ESIEA est un pst de 2A qui vise a effectuer le tracking 3D d'un objet dans un espace delimite." << endl; 
 	cout << "Librairie utilisée : OpenCV." << endl;
+	waitKey(0);
 
 	Mat menuBackground = imread("images/menu.jpg"); // Chargement de l'image
 	if (!menuBackground.data) // Sécurité
 	{
 		cout << "Impossible d'ouvrir le menu." << endl;
-		waitKey(0);
+		waitKey(1000);
 		return -1;
 	}
 
@@ -100,7 +124,7 @@ int main(int argc, char** argv)
 	if (!menuBackground.data) // Sécurité
 	{
 		cout << "Impossible d'ouvrir l'image." << endl;
-		waitKey(0);
+		waitKey(1000);
 		return -1;
 	}
 
@@ -113,9 +137,12 @@ int main(int argc, char** argv)
 
 	int input = 0;
 	currentMode = 0;
-	fthreshold = 0;
+	fthreshold = 40;
+	showFilter = 0;
 	filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0;
+	trackedPos.val[0] = 0; trackedPos.val[1] = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
+
 
 	while (input != 'q' && currentMode != -1 )
 	{
