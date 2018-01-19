@@ -2,7 +2,7 @@
 //#include<opencv2\core\core.hpp>
 #include "client_test.h"
 #include<iostream>
-#include "windows.h"
+//#include "windows.h"
 
 using namespace std;
 using namespace cv;
@@ -57,20 +57,21 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
-void getWhitePos()
+Vec2i getWhitePos()
 {
 	int x = 0;
 	int y = 0;
-
-	for (int i = 0; i<36; i++)
+	Vec3b pColor;
+	for (int i = 0; i < finalFrame.rows; i++) //360
 	{
-		for (int j = 0; i < 64; j++)
+		for (int j = 0; j < finalFrame.cols; j++) //640
 		{
-			//Vec3b pColor = finalFrame.at<Vec3b>(j, i);
+			if (finalFrame.at<uchar>(i, j) >= 255) { x += i; y += j; }
 		}
 	}
-
-	//return Vec2i(x, y);
+	x /= 360;
+	y /= 640;
+	return Vec2i(x, y);
 }
 
 void showfilteredCam(VideoCapture cap)
@@ -91,9 +92,9 @@ void showfilteredCam(VideoCapture cap)
 		Scalar(filterColour.val[0] + fthreshold, filterColour.val[1] + fthreshold, filterColour.val[2] + fthreshold), filteredFrame);
 		erode(filteredFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
 		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
-		getWhitePos();
-		Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
-		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
+		trackedPos = getWhitePos();
+		//Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
+		cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
 		if (showFilter) 
 		{
 			imshow("cam_show", finalFrame);
@@ -102,7 +103,6 @@ void showfilteredCam(VideoCapture cap)
 			imshow("cam_show", frame);
 		}
 	}
-	Sleep(33);
 }
 
 int main(int argc, char** argv)
