@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2020
+VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "trackesiea", "trackesiea\trackesiea.vcxproj", "{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}"
 EndProject
@@ -11,6 +11,8 @@ Global
 		Debug - Antoine|x86 = Debug - Antoine|x86
 		Debug - Lucas|x64 = Debug - Lucas|x64
 		Debug - Lucas|x86 = Debug - Lucas|x86
+		Debug - Marko|x64 = Debug - Marko|x64
+		Debug - Marko|x86 = Debug - Marko|x86
 		Release - Lucas|x64 = Release - Lucas|x64
 		Release - Lucas|x86 = Release - Lucas|x86
 	EndGlobalSection
@@ -23,6 +25,10 @@ Global
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Lucas|x64.Build.0 = Debug - Lucas|x64
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Lucas|x86.ActiveCfg = Debug - Lucas|Win32
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Lucas|x86.Build.0 = Debug - Lucas|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x64.ActiveCfg = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x64.Build.0 = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x86.ActiveCfg = Debug - Marko|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x86.Build.0 = Debug - Marko|Win32
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x64.ActiveCfg = Release - Lucas|x64
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x64.Build.0 = Release - Lucas|x64
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x86.ActiveCfg = Release - Lucas|Win32
