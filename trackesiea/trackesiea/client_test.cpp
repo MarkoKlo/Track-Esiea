@@ -7,7 +7,7 @@
 using namespace std;
 using namespace cv;
 
-client_test::client_test()
+client_test::client_test()//
 {
 }
 
