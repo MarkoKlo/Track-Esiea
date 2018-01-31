@@ -24,7 +24,7 @@ int fthreshold;
 int showFilter;
 Vec2i trackedPos;
 
-void onMouseEventMenu(int event, int x, int y, int flags, void* userdata)
+void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 {
 	if (event == EVENT_LBUTTONUP) {
 
