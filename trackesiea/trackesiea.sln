@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "client_test", "trackesiea\trackesiea.vcxproj", "{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Client_Test", "trackesiea\trackesiea.vcxproj", "{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Camera_Calibration", "ConsoleApplication1\ConsoleApplication1.vcxproj", "{9415CA60-9643-42ED-9D26-F8300489D9DE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,8 +15,10 @@ Global
 		Debug - Lucas|x86 = Debug - Lucas|x86
 		Debug - Marko|x64 = Debug - Marko|x64
 		Debug - Marko|x86 = Debug - Marko|x86
-		Release - Lucas|x64 = Release - Lucas|x64
-		Release - Lucas|x86 = Release - Lucas|x86
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Antoine|x64.ActiveCfg = Debug - Antoine|x64
@@ -29,10 +33,34 @@ Global
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x64.Build.0 = Debug - Marko|x64
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x86.ActiveCfg = Debug - Marko|Win32
 		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug - Marko|x86.Build.0 = Debug - Marko|Win32
-		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x64.ActiveCfg = Release - Lucas|x64
-		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x64.Build.0 = Release - Lucas|x64
-		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x86.ActiveCfg = Release - Lucas|Win32
-		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release - Lucas|x86.Build.0 = Release - Lucas|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug|x64.ActiveCfg = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug|x64.Build.0 = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug|x86.ActiveCfg = Debug - Lucas|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Debug|x86.Build.0 = Debug - Lucas|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release|x64.ActiveCfg = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release|x64.Build.0 = Debug - Marko|x64
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release|x86.ActiveCfg = Debug - Lucas|Win32
+		{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}.Release|x86.Build.0 = Debug - Lucas|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Antoine|x64.ActiveCfg = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Antoine|x64.Build.0 = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Antoine|x86.ActiveCfg = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Antoine|x86.Build.0 = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Lucas|x64.ActiveCfg = Debug - Lucas|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Lucas|x64.Build.0 = Debug - Lucas|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Lucas|x86.ActiveCfg = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Lucas|x86.Build.0 = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Marko|x64.ActiveCfg = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Marko|x64.Build.0 = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Marko|x86.ActiveCfg = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug - Marko|x86.Build.0 = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug|x64.ActiveCfg = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug|x64.Build.0 = Debug|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug|x86.ActiveCfg = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Debug|x86.Build.0 = Debug|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Release|x64.ActiveCfg = Release|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Release|x64.Build.0 = Release|x64
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Release|x86.ActiveCfg = Release|Win32
+		{9415CA60-9643-42ED-9D26-F8300489D9DE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
