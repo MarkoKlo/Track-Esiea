@@ -31,6 +31,7 @@
     <ProjectGuid>{81C8FB62-0E8B-4143-AF64-EF345FEF0F57}</ProjectGuid>
     <RootNamespace>trackesiea</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <ProjectName>client_test</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Lucas|Win32'" Label="Configuration">
@@ -125,11 +126,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\dev\opencv\build\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\dev\opencv\build\include;D:\dev\wxMSW-3.1.1\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>D:\dev\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world331d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\dev\wxMSW-3.1.1\lib\vc141_x64_dll;D:\dev\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world341d.lib;wxbase31ud.lib;wxmsw31ud_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Antoine|x64'">
