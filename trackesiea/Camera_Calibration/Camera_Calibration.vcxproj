@@ -143,7 +143,8 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>D:\dev\opencv\build\include;D:\dev\wxMSW-3.1.1\include;D:\dev\wxMSW-3.1.1\include\msvc</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;WXUSINGDLL;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;__WX__;__WXMSW__;WXUSINGDLL;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\dev\opencv\build\x64\vc14\lib;D:\dev\wxMSW-3.1.1\lib\vc_x64_dll</AdditionalLibraryDirectories>

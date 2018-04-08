@@ -8,6 +8,10 @@
 class WxMainApp : public wxApp {
 public:
 	virtual bool OnInit();
+
+
+private:
+	wxFrame *mainfrm;
 };
 
 
