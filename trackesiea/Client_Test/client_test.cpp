@@ -17,11 +17,15 @@ client_test::~client_test()
 }
 
 Mat frame;
-Mat finalFrame;
+Mat hsvFrame;
+Mat thresholdedFrame;
 
 int currentMode;
 Vec3b filterColour;
 int fthreshold;
+
+Vec3i hsvRange;
+
 int showFilter;
 Vec3i trackedPos;
 
@@ -63,28 +67,28 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 {
 	if (event == EVENT_LBUTTONUP)
 	{
-		if (!showFilter) { filterColour = frame.at<Vec3b>(Point(x, y)); }
+		if (!showFilter) { filterColour = hsvFrame.at<Vec3b>(Point(x, y)); }
 		
 	}
 }
 
-Vec3i getWhitePos()
+Vec3i getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
 {
-	int x = 0;
-	int y = 0;
-	int total = 1;
-	Vec3b pColor;
-	for (int i = 0; i < finalFrame.rows; i++) //360
+	Point2f position;
+	float radius;
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours(thresholdedFrame, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); // On détecte les contours de l'image seuil
+	
+	if (contours.size() <= 0) {return Vec3i(0, 0, 0);} // Si aucun contour on retourne rien
+	int largestContourIndex = 0;
+	int largestContourArea = 0;
+	for (int i=0; i < contours.size(); i++)// On trouve le contour le plus grand
 	{
-		for (int j = 0; j < finalFrame.cols; j++) //640
-		{
-			if (finalFrame.at<uchar>(i, j) >= 250) { x += i; y += j; total++;}
-		}
+		if (double c = contourArea(contours[i]) > largestContourArea) { largestContourIndex = i; largestContourArea = c; }
 	}
-	if(total!=0){
-	x /= total;
-	y /= total;}
-	return Vec3i(y, x,(int)sqrt(total*3.14159) );
+	minEnclosingCircle(contours[largestContourIndex], position, radius);
+	return Vec3i(position.x, position.y, radius);
 }
 
 void showfilteredCam(VideoCapture cap)
@@ -96,22 +100,25 @@ void showfilteredCam(VideoCapture cap)
 	
 	if (!fullframe.empty())
 	{
-		
 		Mat filteredFrame;
 		Mat erodedFrame;
-		createTrackbar("Tolerance", "cam_show", &fthreshold, 255, NULL);
+		createTrackbar("Hue Range", "cam_show", &hsvRange[0], 255, NULL);
+		createTrackbar("Saturation Range", "cam_show", &hsvRange[1], 255, NULL);
+		createTrackbar("Value Range", "cam_show", &hsvRange[2], 255, NULL);
 		createTrackbar("filter", "cam_show", &showFilter, 1, NULL);
-		inRange(frame, Scalar(filterColour.val[0]- fthreshold, filterColour.val[1] - fthreshold, filterColour.val[2] - fthreshold),
+		cvtColor(frame, hsvFrame, CV_BGR2HSV);
+		inRange(hsvFrame, Scalar(filterColour.val[0]- hsvRange[1], filterColour.val[1] - hsvRange[1], filterColour.val[2] - hsvRange[2]),
 		Scalar(filterColour.val[0] + fthreshold, filterColour.val[1] + fthreshold, filterColour.val[2] + fthreshold), filteredFrame);
-		erode(filteredFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
-		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
-		trackedPos = getWhitePos();
+
+		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
+		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
+		trackedPos = getBallPos();
 		//Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
 		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
-		circle(frame,Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2]/2,Scalar(0,0,255),2,8,0);
+		circle(frame,Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2],Scalar(0,0,255),2,8,0);
 		if (showFilter) 
 		{
-			imshow("cam_show", finalFrame);
+			imshow("cam_show", thresholdedFrame);
 		}
 		else {
 			imshow("cam_show", frame);
@@ -169,6 +176,7 @@ int main(int argc, char** argv)
 	fthreshold = 40;
 	showFilter = 0;
 	filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0;
+	hsvRange.val[0] = 90; hsvRange.val[1] =90; hsvRange.val[2] = 90;
 	trackedPos.val[0] = 0; trackedPos.val[1] = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
 
