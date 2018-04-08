@@ -2,6 +2,7 @@
 //#include<opencv2\core\core.hpp>
 #include "client_test.h"
 #include<iostream>
+#include<math.h>
 //#include "windows.h"
 
 using namespace std;
@@ -22,7 +23,11 @@ int currentMode;
 Vec3b filterColour;
 int fthreshold;
 int showFilter;
-Vec2i trackedPos;
+Vec3i trackedPos;
+
+int exposure;
+int gain;
+int parameter;
 
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 {
@@ -44,6 +49,12 @@ void showCam(VideoCapture cap)
 	cap.read(frame);
 	if (!frame.empty())
 	{
+		createTrackbar("Parameter", "cam_show", &parameter, 20, NULL);
+		createTrackbar("Exposure", "cam_show", &exposure, 100, NULL);
+		createTrackbar("Gain", "cam_show", &gain, 100, NULL);
+		cap.set(parameter, exposure / 10.0);
+		cap.set(CAP_PROP_BRIGHTNESS, exposure/10.0);
+		cap.set(CAP_PROP_GAIN, gain/10.0);
 		imshow("cam_show", frame);
 	}
 }
@@ -57,28 +68,30 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
-Vec2i getWhitePos()
+Vec3i getWhitePos()
 {
 	int x = 0;
 	int y = 0;
+	int total = 1;
 	Vec3b pColor;
 	for (int i = 0; i < finalFrame.rows; i++) //360
 	{
 		for (int j = 0; j < finalFrame.cols; j++) //640
 		{
-			if (finalFrame.at<uchar>(i, j) >= 255) { x += i; y += j; }
+			if (finalFrame.at<uchar>(i, j) >= 250) { x += i; y += j; total++;}
 		}
 	}
-	x /= 360;
-	y /= 640;
-	return Vec2i(x, y);
+	if(total!=0){
+	x /= total;
+	y /= total;}
+	return Vec3i(y, x,(int)sqrt(total*3.14159) );
 }
 
 void showfilteredCam(VideoCapture cap)
 {
 	Mat fullframe;
 	cap.read(fullframe);
-	resize(fullframe, frame, Size(640, 360));
+	resize(fullframe, frame, Size(640, 480));
 	setMouseCallback("cam_show", onMouseEventFilteredCam, &frame);
 	
 	if (!fullframe.empty())
@@ -94,7 +107,8 @@ void showfilteredCam(VideoCapture cap)
 		//dilate(erodedFrame, finalFrame, Mat(), Point(-1, -1), 2, 1, 1);
 		trackedPos = getWhitePos();
 		//Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
-		cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
+		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
+		circle(frame,Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2]/2,Scalar(0,0,255),2,8,0);
 		if (showFilter) 
 		{
 			imshow("cam_show", finalFrame);
@@ -131,6 +145,21 @@ int main(int argc, char** argv)
 	VideoCapture cap(0);
 	cap.set(CAP_PROP_FRAME_WIDTH, 640);
 	cap.set(CAP_PROP_FRAME_HEIGHT, 480);
+	cap.set(CV_CAP_PROP_GAIN, 5);
+	cap.set(CV_CAP_PROP_EXPOSURE, 500);
+	//cap.set(CV_CAP_PROP_SETTINGS, 0);
+	cap.set(CV_CAP_DSHOW, 0);
+
+	exposure = 5;
+	gain = 5;
+	cout << "Get Exposure : " << cap.get(CV_CAP_PROP_EXPOSURE) << endl;
+	cout << "Get Gain : " << cap.get(CV_CAP_PROP_GAIN) << endl;
+	cout << "Get FPS : " << cap.get(CV_CAP_PROP_FPS) << endl;
+	cout << "Get Brightness : " << cap.get(CV_CAP_PROP_BRIGHTNESS) << endl;
+	cout << "Get Width : " << cap.get(CV_CAP_PROP_FRAME_WIDTH) << endl;
+
+	cout << "Exposure :" << cap.set(CAP_PROP_EXPOSURE, exposure) << endl;
+	//cap.set(CAP_PROP_GAIN, gain);
 
 	namedWindow("client_test", WINDOW_AUTOSIZE);
 	imshow("client_test", menuBackground);

@@ -154,8 +154,8 @@
       <AdditionalIncludeDirectories>D:\opencv\build\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>D:\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world331d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\opencv\build\x86\vc15\lib\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_core340d.lib;opencv_highgui340d.lib;opencv_video340d.lib;opencv_videoio340d.lib;opencv_imgproc340d.lib;opencv_shape340d.lib;opencv_photo340d.lib;opencv_imgcodecs340d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug - Lucas|x64'">
