@@ -1,10 +1,12 @@
-#include<opencv2/opencv.hpp>
+//#include<opencv2/opencv.hpp>
 //#include<opencv2\core\core.hpp>
 #include "client_test.h"
 #include<iostream>
 #include<cstdio>
 #include<math.h>
-//#include "windows.h"
+#include<opencv2\opencv.hpp>
+
+#define PI 3.1415926536
 
 using namespace std;
 using namespace cv;
@@ -30,7 +32,7 @@ Vec3i hsvRange;
 
 int showFilter = 0;
 bool showCircle = false;
-Vec3i trackedPos;
+Vec3f trackedPos;
 
 int exposure;
 int gain;
@@ -82,32 +84,46 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 	}
 }
 
-Vec3i getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
+float getHorizontalFoV(float dfov,float aspect) { // retourne le fov en degrés
+	float radAngle = dfov * ( PI / 180);//dfov en degrés
+	float radHFOV = 2 * atan(tan(radAngle / 2.0) * aspect );
+	float hFOV = (180 / PI) * radHFOV;
+	return hFOV;
+}
+
+Vec3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
 {
 	Point2f position;
 	float radius;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
-	findContours(thresholdedFrame, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); // On détecte les contours de l'image seuil
+	findContours(thresholdedFrame, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
 	if (contours.size() <= 0) {return Vec3i(0, 0, 0);} // Si aucun contour on retourne rien
 	int largestContourIndex = 0;
-	int largestContourArea = 0;
-	for (int i=0; i < contours.size(); i++)// On trouve le contour le plus grand
+	double largestContourArea = 0;
+	for (int i=0; i < (int)contours.size(); i++)// On trouve le contour le plus grand
 	{
 		if (double c = contourArea(contours[i]) > largestContourArea) { largestContourIndex = i; largestContourArea = c; }
 	}
 	minEnclosingCircle(contours[largestContourIndex], position, radius); // On calcule le cercle englobant le plus petit
-	return Vec3i(position.x, position.y, radius);
+	
+	return Vec3f(position.x, position.y, radius);
+}
+
+float getBallDistance(float radius,float x, float y)
+{
+	//float ballFoV = (radius / 800.0)*75.0; // 800 = Pixels de diagonale A MODIFIER, 75.0 = FOV de la PSEye
+	float toCenterEdgeDist = sqrt((x - 320)*(x - 320) + (y - 240)*(y - 240)) + radius; // distance de la balle par rpor au centre + rayon A MODIFIER
+	float toCenterFoV = (toCenterEdgeDist / 800.0)*75.0; // angle en degrés
+	return 0;
 }
 
 void showfilteredCam(VideoCapture cap)
 {
-	Mat fullframe;
-	cap.read(fullframe);
-	resize(fullframe, frame, Size(640, 480));
+	cap.read(frame);
 	setMouseCallback("cam_show", onMouseEventFilteredCam, &frame);
 	
-	if (!fullframe.empty())
+	if (!frame.empty())
 	{
 		Mat filteredFrame;
 		Mat erodedFrame;
@@ -121,9 +137,8 @@ void showfilteredCam(VideoCapture cap)
 		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
 		trackedPos = getBallPos();
-		//Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
-		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
-		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, 8, 0); }
+		cout << "x:" << trackedPos.val[0] << " y:" << trackedPos.val[1] << " dist:" << 40.0*(1000*10.55/40.0)/trackedPos.val[2] << endl;
+		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, CV_AA, 0); }
 		if (showFilter==0) 
 		{
 			imshow("cam_show", frame);
@@ -164,7 +179,8 @@ int main(int argc, char** argv)
 	cap.set(CAP_PROP_FRAME_WIDTH, 640);
 	cap.set(CAP_PROP_FRAME_HEIGHT, 480);
 	cap.set(CV_CAP_PROP_GAIN, 5);
-	cap.set(CV_CAP_PROP_EXPOSURE, 500);
+	cap.set(CV_CAP_PROP_EXPOSURE, 2);
+	cap.set(CV_CAP_PROP_FPS, 60);
 	//cap.set(CV_CAP_PROP_SETTINGS, 0);
 	cap.set(CV_CAP_DSHOW, 0);
 
