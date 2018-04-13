@@ -1,10 +1,12 @@
-#include<opencv2/opencv.hpp>
+//#include<opencv2/opencv.hpp>
 //#include<opencv2\core\core.hpp>
 #include "client_test.h"
 #include<iostream>
 #include<cstdio>
 #include<math.h>
-//#include "windows.h"
+#include<opencv2\opencv.hpp>
+
+#define PI 3.1415926536
 
 using namespace std;
 using namespace cv;
@@ -30,7 +32,7 @@ Vec3i hsvRange;
 
 int showFilter = 0;
 bool showCircle = false;
-Vec3i trackedPos;
+Vec3f trackedPos;
 
 int exposure;
 int gain;
@@ -39,14 +41,13 @@ int parameter;
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 {
 	if (event == EVENT_LBUTTONUP) {
-		if (x > 11 && x < 628 && y>267 && y < 374) {
-			currentMode = 3; destroyWindow("image_show"); // Afficher la camera
-			namedWindow("cam_show", WINDOW_AUTOSIZE);
+		if (x > 11 && x < 628 && y>267 && y < 374) { currentMode = 3; destroyWindow("image_show"); // Afficher la camera
+		namedWindow("cam_show", WINDOW_AUTOSIZE);
 		}
-
+		
 		if (x > 12 && x < 301 && y>409 && y < 516) { showFilter = !showFilter; } // Activer/Desactiver le filtre
 		if (x > 339 && x < 628 && y>409 && y < 516) { showCircle = !showCircle; } // Afficher le cercle
-		if (x > 387 && x < 601 && y>571 && y < 608) { currentMode = -1; } // Quitter
+		if (x > 387 && x < 601 && y>571 && y < 608) { currentMode = -1;} // Quitter
 	}
 }
 
@@ -59,8 +60,8 @@ void showCam(VideoCapture cap)
 		createTrackbar("Exposure", "cam_show", &exposure, 100, NULL);
 		createTrackbar("Gain", "cam_show", &gain, 100, NULL);
 		cap.set(parameter, exposure / 10.0);
-		cap.set(CAP_PROP_BRIGHTNESS, exposure / 10.0);
-		cap.set(CAP_PROP_GAIN, gain / 10.0);
+		cap.set(CAP_PROP_BRIGHTNESS, exposure/10.0);
+		cap.set(CAP_PROP_GAIN, gain/10.0);
 		imshow("cam_show", frame);
 	}
 }
@@ -70,45 +71,59 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 	if (event == EVENT_LBUTTONUP)
 	{
 		if (!showFilter) {
-
+			
 			int count = 0;
 			filterColour = Vec3i(0, 0, 0);
 			for (int i = -3; i < 4; i++) {
-				for (int j = -3; j < 4; j++) { filterColour += hsvFrame.at<Vec3b>(Point(x + i, y + j)); count++; }
+				for (int j = -3; j < 4; j++) { filterColour += hsvFrame.at<Vec3b>(Point(x+i, y+j)); count++; }
 			}
 			filterColour /= count;
 			printf_s("Couleur changee : %d %d %d \n", filterColour.val[0], filterColour.val[1], filterColour.val[2]);
 		}
-
+		
 	}
 }
 
-Vec3i getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
+float getHorizontalFoV(float dfov,float aspect) { // retourne le fov en degrés
+	float radAngle = dfov * ( PI / 180);//dfov en degrés
+	float radHFOV = 2 * atan(tan(radAngle / 2.0) * aspect );
+	float hFOV = (180 / PI) * radHFOV;
+	return hFOV;
+}
+
+Vec3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
 {
 	Point2f position;
 	float radius;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
-	findContours(thresholdedFrame, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE); // On détecte les contours de l'image seuil
-	if (contours.size() <= 0) { return Vec3i(0, 0, 0); } // Si aucun contour on retourne rien
+	findContours(thresholdedFrame, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
+	if (contours.size() <= 0) {return Vec3i(0, 0, 0);} // Si aucun contour on retourne rien
 	int largestContourIndex = 0;
-	int largestContourArea = 0;
-	for (int i = 0; i < contours.size(); i++)// On trouve le contour le plus grand
+	double largestContourArea = 0;
+	for (int i=0; i < (int)contours.size(); i++)// On trouve le contour le plus grand
 	{
 		if (double c = contourArea(contours[i]) > largestContourArea) { largestContourIndex = i; largestContourArea = c; }
 	}
 	minEnclosingCircle(contours[largestContourIndex], position, radius); // On calcule le cercle englobant le plus petit
-	return Vec3i(position.x, position.y, radius);
+	
+	return Vec3f(position.x, position.y, radius);
+}
+
+float getBallDistance(float radius,float x, float y)
+{
+	//float ballFoV = (radius / 800.0)*75.0; // 800 = Pixels de diagonale A MODIFIER, 75.0 = FOV de la PSEye
+	float toCenterEdgeDist = sqrt((x - 320)*(x - 320) + (y - 240)*(y - 240)) + radius; // distance de la balle par rpor au centre + rayon A MODIFIER
+	float toCenterFoV = (toCenterEdgeDist / 800.0)*75.0; // angle en degrés
+	return 0;
 }
 
 void showfilteredCam(VideoCapture cap)
 {
-	Mat fullframe;
-	cap.read(fullframe);
-	resize(fullframe, frame, Size(640, 480));
+	cap.read(frame);
 	setMouseCallback("cam_show", onMouseEventFilteredCam, &frame);
-
-	if (!fullframe.empty())
+	
+	if (!frame.empty())
 	{
 		Mat filteredFrame;
 		Mat erodedFrame;
@@ -116,20 +131,19 @@ void showfilteredCam(VideoCapture cap)
 		createTrackbar("Saturation Range", "cam_show", &hsvRange[1], 255, NULL);
 		createTrackbar("Value Range", "cam_show", &hsvRange[2], 255, NULL);
 		cvtColor(frame, hsvFrame, CV_BGR2HSV);
-		inRange(hsvFrame, Scalar(filterColour.val[0] - hsvRange[0], filterColour.val[1] - hsvRange[1], filterColour.val[2] - hsvRange[2]),
-			Scalar(filterColour.val[0] + hsvRange[0], filterColour.val[1] + hsvRange[1], filterColour.val[2] + hsvRange[2]), filteredFrame);
+		inRange(hsvFrame, Scalar(filterColour.val[0]- hsvRange[0], filterColour.val[1] - hsvRange[1], filterColour.val[2] - hsvRange[2]),
+		Scalar(filterColour.val[0] + hsvRange[0], filterColour.val[1] + hsvRange[1], filterColour.val[2] + hsvRange[2]), filteredFrame);
 
 		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
 		trackedPos = getBallPos();
-		//Vec3b pColor = finalFrame.at<Vec3b>(0, 0);
-		//cout << trackedPos.val[0] << " " << trackedPos.val[1] << endl;
-		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, 8, 0); }
-		if (showFilter == 0)
+		cout << "x:" << trackedPos.val[0] << " y:" << trackedPos.val[1] << " dist:" << 40.0*(1000*10.55/40.0)/trackedPos.val[2] << endl;
+		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, CV_AA, 0); }
+		if (showFilter==0) 
 		{
 			imshow("cam_show", frame);
 		}
-		else if (showFilter == 1) {
+		else if(showFilter==1){
 			imshow("cam_show", thresholdedFrame);
 		}
 	}
@@ -138,7 +152,7 @@ void showfilteredCam(VideoCapture cap)
 int main(int argc, char** argv)
 {
 	// cout est le flux de texte du terminal, '<<' permet d'injecter un élément dans cout, endl correspond à la fin de ligne
-	cout << "Track'ESIEA est un pst de 2A qui vise a effectuer le tracking 3D d'un objet dans un espace delimite." << endl;
+	cout << "Track'ESIEA est un pst de 2A qui vise a effectuer le tracking 3D d'un objet dans un espace delimite." << endl; 
 	cout << "Librairie utilisée : OpenCV." << endl;
 	waitKey(0);
 
@@ -165,7 +179,8 @@ int main(int argc, char** argv)
 	cap.set(CAP_PROP_FRAME_WIDTH, 640);
 	cap.set(CAP_PROP_FRAME_HEIGHT, 480);
 	cap.set(CV_CAP_PROP_GAIN, 5);
-	cap.set(CV_CAP_PROP_EXPOSURE, 500);
+	cap.set(CV_CAP_PROP_EXPOSURE, 2);
+	cap.set(CV_CAP_PROP_FPS, 60);
 	//cap.set(CV_CAP_PROP_SETTINGS, 0);
 	cap.set(CV_CAP_DSHOW, 0);
 
@@ -187,14 +202,14 @@ int main(int argc, char** argv)
 	currentMode = 0;
 	fthreshold = 40;
 	filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0;
-	hsvRange.val[0] = 25; hsvRange.val[1] = 60; hsvRange.val[2] = 80;
+	hsvRange.val[0] = 25; hsvRange.val[1] =60; hsvRange.val[2] = 80;
 	trackedPos.val[0] = 0; trackedPos.val[1] = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
 
 
-	while (input != 'q' && currentMode != -1)
+	while (input != 'q' && currentMode != -1 )
 	{
-
+		
 
 		switch (currentMode)
 		{
