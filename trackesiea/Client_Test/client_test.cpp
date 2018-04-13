@@ -7,6 +7,7 @@
 #include<opencv2\opencv.hpp>
 
 #define PI 3.1415926536
+#define BALL_SIZE 40.0
 
 using namespace std;
 using namespace cv;
@@ -91,7 +92,7 @@ float getHorizontalFoV(float dfov,float aspect) { // retourne le fov en degrés
 	return hFOV;
 }
 
-Vec3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
+Point3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
 {
 	Point2f position;
 	float radius;
@@ -107,9 +108,17 @@ Vec3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la 
 	}
 	minEnclosingCircle(contours[largestContourIndex], position, radius); // On calcule le cercle englobant le plus petit
 	
-	return Vec3f(position.x, position.y, radius);
+	return Point3f(position.x, position.y, radius);
 }
 
+Vec3f get3DPosition(float x, float y, float radius,float focal) // focal 263.75 pixels
+{
+	float distToCamera = (focal * BALL_SIZE) / radius;
+	float xPosition = (x - 320.0) / distToCamera;
+	float yPosition = (y - 240.0) / distToCamera;
+	return Vec3f(xPosition,yPosition,distToCamera);
+}
+/*
 float getBallDistance(float radius,float x, float y)
 {
 	//float ballFoV = (radius / 800.0)*75.0; // 800 = Pixels de diagonale A MODIFIER, 75.0 = FOV de la PSEye
@@ -117,7 +126,7 @@ float getBallDistance(float radius,float x, float y)
 	float toCenterFoV = (toCenterEdgeDist / 800.0)*75.0; // angle en degrés
 	return 0;
 }
-
+*/
 void showfilteredCam(VideoCapture cap)
 {
 	cap.read(frame);
@@ -137,7 +146,8 @@ void showfilteredCam(VideoCapture cap)
 		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
 		trackedPos = getBallPos();
-		cout << "x:" << trackedPos.val[0] << " y:" << trackedPos.val[1] << " dist:" << 40.0*(1000*10.55/40.0)/trackedPos.val[2] << endl;
+		//cout << "x:" << trackedPos.val[0] << " y:" << trackedPos.val[1] << " dist:" << 40.0*(1000*10.55/40.0)/trackedPos.val[2] << endl;
+		printf("x:%.1f y:%.1f z:%.1f");
 		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, CV_AA, 0); }
 		if (showFilter==0) 
 		{
