@@ -242,7 +242,6 @@ int main(int argc, char** argv)
 	hsvRange.val[0] = 25; hsvRange.val[1] =60; hsvRange.val[2] = 80;
 	trackedPos.x = 0; trackedPos.y = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
-	debugGraphFrame = debugGraph.clone();
 
 	while (input != 'q' && currentMode != -1 )
 	{
