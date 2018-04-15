@@ -7,8 +7,10 @@
 #include<opencv2\opencv.hpp>
 
 #define PI 3.1415926536
-#define BALL_SIZE 40.0
+#define BALL_SIZE 4.0
+#define BALL_RADIUS 2.0
 #define TEST_FOCAL_LENGTH 263.75
+#define FOCAL_LENGTH_PIXEL 550.0
 
 using namespace std;
 using namespace cv;
@@ -29,6 +31,7 @@ Mat contoursFrame;
 int currentMode;
 Mat debugGraph;
 int counter = 0;
+Point3f lastPositions[20];
 
 Vec3i hsvRange;
 Vec3i filterColour;
@@ -94,7 +97,7 @@ float getHorizontalFoV(float dfov,float aspect) { // retourne le fov en degrés
 	return hFOV;
 }
 
-Point3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
+Point3f get2DBallPos() // Les deux premieres valeurs sont les coordonnées x y et la troisieme est le rayon
 {
 	Point2f position;
 	float radius;
@@ -114,34 +117,37 @@ Point3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et l
 	return Point3f(position.x, position.y, radius);
 }
 
-Point3f get3DPosition(float x, float y, float radius,float focal) // focal 263.75 pixels
+Point3f get3DPosition(float x, float y, float radius,float focal)
 {
-	if(x*x>1000000||y*y>1000000||radius==0){return Point3f(0,0,0); }
-	/*
-	float distToCamera = (focal * BALL_SIZE) / radius;
-	float xPosition = 1000 * (x - 320.0) / distToCamera;
-	float yPosition = 1000 * (y - 240.0) / distToCamera;
-	return Point3f(xPosition,yPosition,distToCamera);
-	*/
-	// Calcul de Z
-	float distToCamera = (focal * BALL_SIZE) / radius;
-	float distToCenter = sqrtf(x * x + y * y);
-	float distToBallOnPlane = sqrt(focal * focal + distToCenter * distToCenter);
-	float Z = (distToCamera*focal) / distToBallOnPlane;
-	// Calcul de X et Y
-	float X = (Z * x - 320) / focal;
-	float Y = (Z * y - 240) / focal;
-	return Point3f(X, Y, Z);
+	focal = FOCAL_LENGTH_PIXEL;
+	
+	// Centrage de la position
+	float x_px = x - 320;
+	float y_px = 240 - y;
+
+	// Calcul de la distance l_px entre le centre et le cercle
+	float l_px = sqrt(x_px * x_px + y_px * y_px);
+
+	// Calcul des rapports
+	float K = l_px / focal;
+	float J = (l_px + radius) / focal;
+	float L = (J - K) / (1 + J * K);
+
+	// Calcul de la distance relle D_cm entre le centre et la sphere
+	float D_cm = (BALL_RADIUS * sqrt(1 + L * L)) / L;
+
+	// Calcul de Z_cm la profondeur
+	float fl = focal / l_px;
+	float Z_cm = (D_cm*fl) / sqrt(1 + fl * fl);
+
+	// Calcul de X_cm et Y_cm
+	float L_cm = Z_cm * K;
+	float X_cm = (L_cm*x_px) / l_px;
+	float Y_cm = (L_cm*y_px) / l_px;
+
+	return Point3f(X_cm, Y_cm, Z_cm);
 }
-/*
-float getBallDistance(float radius,float x, float y)
-{
-	//float ballFoV = (radius / 800.0)*75.0; // 800 = Pixels de diagonale A MODIFIER, 75.0 = FOV de la PSEye
-	float toCenterEdgeDist = sqrt((x - 320)*(x - 320) + (y - 240)*(y - 240)) + radius; // distance de la balle par rpor au centre + rayon A MODIFIER
-	float toCenterFoV = (toCenterEdgeDist / 800.0)*75.0; // angle en degrés
-	return 0;
-}
-*/
+
 void showfilteredCam(VideoCapture cap)
 {
 	cap.read(frame);
@@ -160,13 +166,10 @@ void showfilteredCam(VideoCapture cap)
 
 		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
-		Point3f trackedPos2D = getBallPos();
-		printf("dist:%f\n", TEST_FOCAL_LENGTH*40.0/trackedPos2D.z);
-		trackedPos = get3DPosition(trackedPos2D.x, trackedPos2D.y, trackedPos2D.z,TEST_FOCAL_LENGTH);
-
+		Point3f trackedPos2D = get2DBallPos();
+		trackedPos = get3DPosition(trackedPos2D.x, trackedPos2D.y, trackedPos2D.z,FOCAL_LENGTH_PIXEL);
 		counter++;
-		//if (counter%10==0) { cout << "x:" << trackedPos.x << " y:" << trackedPos.y << " z:" << trackedPos.z << endl; }
-		//printf("x:%.1f y:%.1f z:%.1f", trackedPos.val[0], trackedPos.val[1], 40.0*(1000 * 10.55 / 40.0) / trackedPos.val[2]);
+		if (counter%10==0) { cout << "x:" << trackedPos.x << " y:" << trackedPos.y << " z:" << trackedPos.z << endl; }
 
 		if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255),1, CV_AA, 0); }
 		if (showFilter==0) 
@@ -177,8 +180,9 @@ void showfilteredCam(VideoCapture cap)
 			imshow("cam_show", thresholdedFrame);
 		}
 		Mat debugGraphFrame = debugGraph.clone();
-		circle(debugGraphFrame, Point(200, (200 - trackedPos.z*0.1)), 2, Scalar(255, 0, 0), 2, -1, 0); // Distance to Camera debug
-		circle(debugGraphFrame, Point(trackedPos.x, (200-trackedPos.z*0.1) ), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
+		circle(debugGraphFrame, Point( (trackedPos.x*5.0+500) , trackedPos.z*5.0 ), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
+		char debugText[100]; sprintf_s(debugText, "X:%.1fcm  Y:%.1fcm Z: %.1fcm",trackedPos.x,trackedPos.y,trackedPos.z);
+		putText(debugGraphFrame, debugText, Point2i(10, 975), CV_FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 0), 2, LINE_AA);
 		imshow("position_graph", debugGraphFrame);
 	}
 }
@@ -238,7 +242,7 @@ int main(int argc, char** argv)
 	hsvRange.val[0] = 25; hsvRange.val[1] =60; hsvRange.val[2] = 80;
 	trackedPos.x = 0; trackedPos.y = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
-
+	debugGraphFrame = debugGraph.clone();
 
 	while (input != 'q' && currentMode != -1 )
 	{
