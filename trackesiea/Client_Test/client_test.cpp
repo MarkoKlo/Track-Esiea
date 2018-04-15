@@ -242,10 +242,11 @@ int main(int argc, char** argv)
 	hsvRange.val[0] = 25; hsvRange.val[1] =60; hsvRange.val[2] = 80;
 	trackedPos.x = 0; trackedPos.y = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
+	float e1, e2, time;
 
 	while (input != 'q' && currentMode != -1 )
 	{
-		
+		e1 = getTickCount();
 
 		switch (currentMode)
 		{
@@ -259,8 +260,11 @@ int main(int argc, char** argv)
 			showfilteredCam(cap);
 			break;
 		}
-		input = waitKey(33);
-
+		
+		e2 = getTickCount();
+		time = (e2 - e1) / getTickFrequency();
+		cout << "time:" << time*1000 << endl;
+		input = waitKey(16);
 	}
 	return 0;
 }

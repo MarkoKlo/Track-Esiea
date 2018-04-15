@@ -8,6 +8,10 @@
 #define BALL_RADIUS 2.0
 #define PSEYE_FOCAL 550.0
 
+/*
+Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
+*/
+
 class Tracker
 {
 public:
@@ -23,12 +27,12 @@ public:
 
 private :
 	
-	VideoCapture m_videoCap;
+	cv::VideoCapture m_videoCap;
 	float m_focalLength;
 	float m_ballRadius;
 	cv::Vec3i m_hsvRange;
 	cv::Scalar m_filterColor;
-	Point3f m_lastPosition;
+	cv::Point3f m_lastPosition;
 	void color_filtering();
 	void circle_fitting(cv::Point3f& circleCoord);
 	void mono_position_estimation(cv::Point3f circleCoord, cv::Point3f& outPosition);

@@ -27,7 +27,7 @@ void Tracker::track()
 {
 	m_videoCap.read(videoFrame); // Lecture du flux camera
 
-	if (!videoFrame.empty)
+	if (!videoFrame.empty())
 	{
 		Point3f circle2Dcoord = Point3f(0, 0, 0);
 		Point3f raw_position = Point3f(0, 0, 0);
