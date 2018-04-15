@@ -8,6 +8,7 @@
 
 #define PI 3.1415926536
 #define BALL_SIZE 40.0
+#define TEST_FOCAL_LENGTH 263.75
 
 using namespace std;
 using namespace cv;
@@ -26,14 +27,15 @@ Mat thresholdedFrame;
 Mat contoursFrame;
 
 int currentMode;
-Vec3i filterColour;
-int fthreshold;
+Mat debugGraph;
+int counter = 0;
 
 Vec3i hsvRange;
+Vec3i filterColour;
 
 int showFilter = 0;
 bool showCircle = false;
-Vec3f trackedPos;
+Point3f trackedPos;
 
 int exposure;
 int gain;
@@ -104,19 +106,32 @@ Point3f getBallPos() // Les deux premieres valeurs sont les coordonnées x y et l
 	double largestContourArea = 0;
 	for (int i=0; i < (int)contours.size(); i++)// On trouve le contour le plus grand
 	{
-		if (double c = contourArea(contours[i]) > largestContourArea) { largestContourIndex = i; largestContourArea = c; }
+		double c = contourArea(contours[i]);
+		if (c > largestContourArea) { largestContourIndex = i; largestContourArea = c; }
 	}
 	minEnclosingCircle(contours[largestContourIndex], position, radius); // On calcule le cercle englobant le plus petit
 	
 	return Point3f(position.x, position.y, radius);
 }
 
-Vec3f get3DPosition(float x, float y, float radius,float focal) // focal 263.75 pixels
+Point3f get3DPosition(float x, float y, float radius,float focal) // focal 263.75 pixels
 {
+	if(x*x>1000000||y*y>1000000||radius==0){return Point3f(0,0,0); }
+	/*
 	float distToCamera = (focal * BALL_SIZE) / radius;
-	float xPosition = (x - 320.0) / distToCamera;
-	float yPosition = (y - 240.0) / distToCamera;
-	return Vec3f(xPosition,yPosition,distToCamera);
+	float xPosition = 1000 * (x - 320.0) / distToCamera;
+	float yPosition = 1000 * (y - 240.0) / distToCamera;
+	return Point3f(xPosition,yPosition,distToCamera);
+	*/
+	// Calcul de Z
+	float distToCamera = (focal * BALL_SIZE) / radius;
+	float distToCenter = sqrtf(x * x + y * y);
+	float distToBallOnPlane = sqrt(focal * focal + distToCenter * distToCenter);
+	float Z = (distToCamera*focal) / distToBallOnPlane;
+	// Calcul de X et Y
+	float X = (Z * x - 320) / focal;
+	float Y = (Z * y - 240) / focal;
+	return Point3f(X, Y, Z);
 }
 /*
 float getBallDistance(float radius,float x, float y)
@@ -145,10 +160,15 @@ void showfilteredCam(VideoCapture cap)
 
 		erode(filteredFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, thresholdedFrame, Mat(), Point(-1, -1), 2);
-		trackedPos = getBallPos();
-		//cout << "x:" << trackedPos.val[0] << " y:" << trackedPos.val[1] << " dist:" << 40.0*(1000*10.55/40.0)/trackedPos.val[2] << endl;
-		printf("x:%.1f y:%.1f z:%.1f");
-		if (showCircle) { circle(frame, Point(trackedPos.val[0], trackedPos.val[1]), trackedPos.val[2], Scalar(0, 0, 255), 2, CV_AA, 0); }
+		Point3f trackedPos2D = getBallPos();
+		printf("dist:%f\n", TEST_FOCAL_LENGTH*40.0/trackedPos2D.z);
+		trackedPos = get3DPosition(trackedPos2D.x, trackedPos2D.y, trackedPos2D.z,TEST_FOCAL_LENGTH);
+
+		counter++;
+		//if (counter%10==0) { cout << "x:" << trackedPos.x << " y:" << trackedPos.y << " z:" << trackedPos.z << endl; }
+		//printf("x:%.1f y:%.1f z:%.1f", trackedPos.val[0], trackedPos.val[1], 40.0*(1000 * 10.55 / 40.0) / trackedPos.val[2]);
+
+		if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255),1, CV_AA, 0); }
 		if (showFilter==0) 
 		{
 			imshow("cam_show", frame);
@@ -156,6 +176,10 @@ void showfilteredCam(VideoCapture cap)
 		else if(showFilter==1){
 			imshow("cam_show", thresholdedFrame);
 		}
+		Mat debugGraphFrame = debugGraph.clone();
+		circle(debugGraphFrame, Point(200, (200 - trackedPos.z*0.1)), 2, Scalar(255, 0, 0), 2, -1, 0); // Distance to Camera debug
+		circle(debugGraphFrame, Point(trackedPos.x, (200-trackedPos.z*0.1) ), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
+		imshow("position_graph", debugGraphFrame);
 	}
 }
 
@@ -174,7 +198,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	Mat marko = imread("images/marko.jpg"); // Chargement de l'image
+	debugGraph = imread("images/repere.jpg"); // Chargement de l'image
 	if (!menuBackground.data) // Sécurité
 	{
 		cout << "Impossible d'ouvrir l'image." << endl;
@@ -210,10 +234,9 @@ int main(int argc, char** argv)
 
 	int input = 0;
 	currentMode = 0;
-	fthreshold = 40;
 	filterColour.val[0] = 0; filterColour.val[1] = 0; filterColour.val[2] = 0;
 	hsvRange.val[0] = 25; hsvRange.val[1] =60; hsvRange.val[2] = 80;
-	trackedPos.val[0] = 0; trackedPos.val[1] = 0;
+	trackedPos.x = 0; trackedPos.y = 0;
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
 
 
@@ -224,7 +247,7 @@ int main(int argc, char** argv)
 		switch (currentMode)
 		{
 		case 1:
-			imshow("image_show", marko);
+			imshow("image_show", debugGraph);
 			break;
 		case 2:
 			showCam(cap);
