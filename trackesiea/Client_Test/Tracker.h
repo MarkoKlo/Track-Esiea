@@ -12,30 +12,58 @@
 Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
 */
 
+using namespace cv;
+
 class Tracker
 {
 public:
-	Tracker::Tracker(float ballRadius, float cameraFocalLength, cv::Point3f* position, cv::Point3f* speed);
-	cv::Mat videoFrame;
-	cv::Point3f* m_position;
-	cv::Point3f* m_speed;
-	cv::Mat filteredFrame;
+	Tracker::Tracker();
+	Tracker::Tracker(float ballRadius, float cameraFocalLength);
+	Tracker::~Tracker();
 	void init_tracker(int cameraIndex,bool stereo);
 	void track();
-	void set_filter_color(cv::Scalar color);
-	void set_filter_range(cv::Vec3i hsvrange);
+	void set_filter_color(Vec3i color);
+	void set_filter_range(Vec3i hsvrange);
+	Vec3i get_hsv_color(Point2i coordinates);
+	Vec3i get_filter_color();
+	Vec3i get_filter_range();
+	Point3f get_2D_position();
+	Point3f get_position();
+	Point3f get_speed();
+	
+
+
+	Mat& get_video_frame();
+	Mat& get_binary_frame();
 
 private :
-	
-	cv::VideoCapture m_videoCap;
+
+	// Variables accessibles via les fonctions d'accès
+	VideoCapture m_videoCap;
+	Mat m_videoFrame;
+	Mat m_hsvFrame;
+	Mat m_filteredFrame;
+	Point3f m_2Dposition;
+	Point3f m_position;
+	Point3f m_speed;
+
+	// Réglages
 	float m_focalLength;
 	float m_ballRadius;
-	cv::Vec3i m_hsvRange;
-	cv::Scalar m_filterColor;
-	cv::Point3f m_lastPosition;
-	void color_filtering();
-	void circle_fitting(cv::Point3f& circleCoord);
-	void mono_position_estimation(cv::Point3f circleCoord, cv::Point3f& outPosition);
-	std::vector<cv::Point> get_largest_contour(std::vector<std::vector<cv::Point> > contours);
+	Vec3i m_hsvRange;
+	Vec3i m_filterColor;
+
+	// Variables privées
+	Point3f m_lastPosition;
+	/*
+	float m_currentTick;
+	float m_lastTick;
+	float m_deltaTime;
+	*/
+	// Fonctions privées
+	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
+	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
+	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
+	std::vector<Point> get_largest_contour(std::vector<std::vector<Point> > contours);
 };
 

@@ -3,61 +3,123 @@
 using namespace std;
 using namespace cv;
 
-Tracker::Tracker(float ballRadius, float cameraFocalLength, Point3f* position, Point3f* speed)
+float m_currentTick;
+float m_lastTick;
+float m_deltaTime;
+
+Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS)// Constructeur par défaut
 {
-	m_position = position;
-	m_speed = speed;
-	m_focalLength = cameraFocalLength;
-	m_ballRadius = ballRadius;
-	set_filter_range(Vec3i(25,80,80) );
-	set_filter_color(Scalar(255,255,255) );
+	set_filter_range(Vec3i(25, 80, 80));
+	set_filter_color(Vec3i(255, 255, 255));
 }
 
+Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
+
+{
+	set_filter_range(Vec3i(25,80,80) );
+	set_filter_color(Vec3i(255,255,255) );
+}
+
+Tracker::~Tracker()
+{
+	m_videoCap.release(); // On éteint la camera et vide la mémoir lorsque la classe est détruite
+}
 
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
 {
 	m_videoCap = VideoCapture(cameraIndex);
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
-	m_videoCap.set(CAP_PROP_FPS, 480);
+	m_videoCap.set(CAP_PROP_FPS, 60);
 	track();
 }
 
+
+
 void Tracker::track()
 {
-	m_videoCap.read(videoFrame); // Lecture du flux camera
+	m_videoCap.read(m_videoFrame); // Lecture du flux camera
 
-	if (!videoFrame.empty())
+	if (!m_videoFrame.empty())
 	{
-		Point3f circle2Dcoord = Point3f(0, 0, 0);
+		// Calculs de positions
 		Point3f raw_position = Point3f(0, 0, 0);
-		color_filtering(); // On filtre la couleur
-		circle_fitting(circle2Dcoord);
-		mono_position_estimation(circle2Dcoord, raw_position);
-		*m_position = raw_position;
+		color_filtering(m_videoFrame,m_hsvRange,m_filterColor,m_filteredFrame); // On filtre la couleur
+		circle_fitting(m_2Dposition,m_filteredFrame);
+		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
+
+		m_lastTick = m_currentTick;
+		m_currentTick = getTickCount() / getTickFrequency();printf("curr:%.0001f last:%.0001f\n", m_deltaTime, m_lastTick);
+		m_deltaTime = (m_currentTick - m_lastTick); 
+
+		m_position = raw_position;
+		m_speed = (m_position + m_lastPosition) / m_deltaTime;
+
+		// Assignations de fin
+		m_lastPosition = m_position;
+		
 	}
 }
 
-void Tracker::set_filter_color(Scalar color) // Règle la couleur du filtre
+void Tracker::set_filter_color(Vec3i color) // Règle la couleur du filtre
 {
 	m_filterColor = color;
 }
 
-void Tracker::set_filter_range(Vec3i m_hsvRange) // Règle la tolérance du filtre
+void Tracker::set_filter_range(Vec3i hsvRange) // Règle la tolérance du filtre
 {
-	m_hsvRange = m_hsvRange;
+	m_hsvRange = hsvRange;
 }
 
-void Tracker::color_filtering() // Filtre la couleur
+Vec3i Tracker::get_hsv_color(Point2i coordinates)
+{
+	return m_hsvFrame.at<Vec3b>(Point(coordinates.x, coordinates.y));
+}
+
+Vec3i Tracker::get_filter_color()
+{
+	return m_filterColor;
+}
+
+Vec3i Tracker::get_filter_range()
+{
+	return m_hsvRange;
+}
+
+Mat& Tracker::get_video_frame()
+{
+	return m_videoFrame;
+}
+
+Mat& Tracker::get_binary_frame()
+{
+	return m_filteredFrame;
+}
+
+Point3f Tracker::get_2D_position()
+{
+	return m_2Dposition;
+}
+
+Point3f Tracker::get_position()
+{
+	return m_position;
+}
+
+Point3f Tracker::get_speed()
+{
+	return m_speed;
+}
+
+void Tracker::color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor,Mat& filteredFrame) // Filtre la couleur
 {
 	if (!videoFrame.empty())
 	{
 		Mat binaryFrame;
 		Mat erodedFrame;
-		Mat hsvFrame;
-		cvtColor(videoFrame, hsvFrame, CV_BGR2HSV);
-		inRange(hsvFrame, Scalar(m_filterColor.val[0] - m_hsvRange[0], m_filterColor.val[1] - m_hsvRange[1], m_filterColor.val[2] - m_hsvRange[2]),
-			Scalar(m_filterColor.val[0] + m_hsvRange[0], m_filterColor.val[1] + m_hsvRange[1], m_filterColor.val[2] + m_hsvRange[2]), binaryFrame);
+		cvtColor(videoFrame, m_hsvFrame, CV_BGR2HSV);
+		inRange(m_hsvFrame, Scalar(filterColor.val[0] - m_hsvRange[0], filterColor.val[1] - hsvRange[1], filterColor.val[2] - hsvRange[2]),
+			Scalar(filterColor.val[0] + hsvRange[0], filterColor.val[1] + hsvRange[1], filterColor.val[2] + hsvRange[2]), binaryFrame);
 
 		erode(binaryFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, filteredFrame, Mat(), Point(-1, -1), 2);
@@ -76,7 +138,7 @@ vector<Point> Tracker::get_largest_contour(vector<vector<Point> > contours) // R
 	return contours[largestContourIndex];
 }
 
-void Tracker::circle_fitting(Point3f& circleCoord) // Donne la position 2D et le rayon du cercle dans circleCoord
+void Tracker::circle_fitting(Point3f& circleCoord,Mat& filteredFrame) // Donne la position 2D et le rayon du cercle dans circleCoord
 {
 	Point2f position;
 	float radius;
@@ -95,9 +157,8 @@ void Tracker::circle_fitting(Point3f& circleCoord) // Donne la position 2D et le
 	circleCoord.z = radius;
 }
 
-void Tracker::mono_position_estimation(Point3f circleCoord, Point3f& outPosition)
+void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition)
 {
-	float focal = m_focalLength;
 	float radius = circleCoord.z;
 
 	// Centrage de la position
