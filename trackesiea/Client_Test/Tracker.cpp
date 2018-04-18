@@ -23,7 +23,7 @@ Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(came
 
 Tracker::~Tracker()
 {
-
+	free(m_currentTick); free(m_lastTick);
 }
 
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
@@ -31,7 +31,6 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	m_videoCap = VideoCapture(cameraIndex);
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
-	m_videoCap.set(CAP_PROP_FPS, 60);
 	m_currentTick = (int64*)malloc(sizeof(int64));
 	m_lastTick = (int64*)malloc(sizeof(int64));
 	track();
@@ -43,7 +42,6 @@ void Tracker::track()
 
 	if (!m_videoFrame.empty())
 	{
-		//printf("x:%f\n", m_lastPosition->x);
 		// Calculs de positions
 		Point3f raw_position = Point3f(0, 0, 0);
 		color_filtering(m_videoFrame, m_hsvRange, m_filterColor, m_filteredFrame); // On filtre la couleur
@@ -53,13 +51,11 @@ void Tracker::track()
 
 		m_position = raw_position;
 		m_speed = (*m_lastPosition - m_position) / m_deltaTime;
-		printf("x:%f y:%f z:%f\n", m_speed.x, m_speed.y, m_speed.z);
 
 		// Assignations de fin
 		*m_lastPosition = raw_position;
 		
 	}
-	//m_deltaTime = get_delta_time();
 }
 
 void Tracker::set_filter_color(Vec3i color) // Règle la couleur du filtre
@@ -96,8 +92,6 @@ Mat& Tracker::get_binary_frame()
 {
 	return m_filteredFrame;
 }
-
-
 
 void Tracker::set_delta_time(int64* cur, int64* las)
 {

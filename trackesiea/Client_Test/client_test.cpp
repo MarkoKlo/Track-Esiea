@@ -65,12 +65,13 @@ void showGraph()
 	Point3f speed = tracker.get_speed();
 	Mat debugGraphFrame = debugGraph.clone();
 	circle(debugGraphFrame, Point((trackedPos.x*5.0 + 500), trackedPos.z*5.0), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
-	char debugText[100]; sprintf_s(debugText, "X:%.1fcm  Y:%.1fcm Z: %.1fcm dX:%.1fcm  dY:%.1fcm dZ: %.1fcm", trackedPos.x, trackedPos.y, trackedPos.z,speed.x,speed.y,speed.z);
+	char debugText[100]; sprintf_s(debugText, "X:%.1fcm  Y:%.1fcm Z: %.1fcm dX:%.1fcm  dY:%.1fcm dZ: %.1fcm", trackedPos.x, trackedPos.y, trackedPos.z,
+	speed.x,speed.y, speed.z);
 	putText(debugGraphFrame, debugText, Point2i(10, 975), CV_FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 0), 2, LINE_AA);
 	imshow("position_graph", debugGraphFrame);
 }
 
-void showfilteredCam(Tracker tracker)
+void showfilteredCam()
 {
 	Mat frame,thresholdedFrame;
 
@@ -84,14 +85,14 @@ void showfilteredCam(Tracker tracker)
 	trackedPos = tracker.get_position();
 	frame = tracker.get_video_frame();
 	thresholdedFrame = tracker.get_binary_frame();
-	//tracker.get_delta_time();
-	//printf("curr:%I64i last:%I64i\n", tracker.m_currentTick, tracker.m_lastTick);
+
 	counte.track();
+	showGraph();
+
 	if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255), 1, CV_AA, 0); }
 	if (showFilter == 0)
 	{imshow("cam_show", frame);}
 	else if (showFilter == 1) {imshow("cam_show", thresholdedFrame);}
-	//showGraph();
 }
 
 int main(int argc, char** argv)
@@ -123,7 +124,6 @@ int main(int argc, char** argv)
 	namedWindow("client_test", WINDOW_AUTOSIZE);
 	imshow("client_test", menuBackground);
 
-	//tracker = Tracker(BALL_RADIUS, FOCAL_LENGTH_PIXEL);
 	tracker.init_tracker(cameraIndex, false);
 
 	int input = 0;
@@ -134,15 +134,8 @@ int main(int argc, char** argv)
 	float e1, e2, time;
 
 	while (input != 'q' && currentMode != -1 )
-	{showfilteredCam(tracker);input = waitKey(13);
-		/*
-		e1 = getTickCount();
-		
-		
-		e2 = getTickCount();
-		time = (e2 - e1) / getTickFrequency();
-		*/
-		//cout << "time:" << time * 1000 << endl;
+	{
+		showfilteredCam();input = waitKey(13);
 	}
 	return 0;
 }
