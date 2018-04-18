@@ -3,6 +3,7 @@
 #include<cstdio>
 #include<math.h>
 #include<opencv2\opencv.hpp>
+#include<opencv2\world.hpp>
 
 #define PI 3.1415926536
 #define BALL_RADIUS 2.0
@@ -14,6 +15,7 @@ Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
 
 using namespace cv;
 
+//Membres de la classe Tracker
 class Tracker
 {
 public:
@@ -30,11 +32,11 @@ public:
 	Point3f get_2D_position();
 	Point3f get_position();
 	Point3f get_speed();
-	
-
 
 	Mat& get_video_frame();
 	Mat& get_binary_frame();
+
+	void get_delta_time(int& cur, int& las);
 
 private :
 
@@ -55,15 +57,17 @@ private :
 
 	// Variables privées
 	Point3f m_lastPosition;
-	/*
-	float m_currentTick;
-	float m_lastTick;
+	int64 m_currentTick;
+	int64 m_lastTick;
 	float m_deltaTime;
-	*/
+	int last;
+	int current;
+
 	// Fonctions privées
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
 	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
 	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
 	std::vector<Point> get_largest_contour(std::vector<std::vector<Point> > contours);
+	
 };
 

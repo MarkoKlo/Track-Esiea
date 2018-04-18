@@ -3,14 +3,14 @@
 using namespace std;
 using namespace cv;
 
-float m_currentTick;
-float m_lastTick;
-float m_deltaTime;
+
+// Variables locales
 
 Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS)// Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
+	m_lastPosition = Point3f(1, 1, 1);
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
@@ -31,10 +31,10 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
 	m_videoCap.set(CAP_PROP_FPS, 60);
+	m_currentTick = 0;
+	m_lastTick = 0;
 	track();
 }
-
-
 
 void Tracker::track()
 {
@@ -48,17 +48,17 @@ void Tracker::track()
 		circle_fitting(m_2Dposition,m_filteredFrame);
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
 
-		m_lastTick = m_currentTick;
-		m_currentTick = getTickCount() / getTickFrequency();printf("curr:%.0001f last:%.0001f\n", m_deltaTime, m_lastTick);
-		m_deltaTime = (m_currentTick - m_lastTick); 
+		get_delta_time(current,last); //printf("delta:%f\n", m_deltaTime);
 
 		m_position = raw_position;
-		m_speed = (m_position + m_lastPosition) / m_deltaTime;
+		m_speed = (m_lastPosition - m_position) / m_deltaTime; //printf("x:%f y:%f z:%f\n", m_lastPosition.x, m_lastPosition.y, m_lastPosition.z);
 
 		// Assignations de fin
 		m_lastPosition = m_position;
+		//printf("x:%f", m_lastPosition.x);
 		
 	}
+	//m_deltaTime = get_delta_time();
 }
 
 void Tracker::set_filter_color(Vec3i color) // Règle la couleur du filtre
@@ -94,6 +94,22 @@ Mat& Tracker::get_video_frame()
 Mat& Tracker::get_binary_frame()
 {
 	return m_filteredFrame;
+}
+
+
+
+void Tracker::get_delta_time(int& cur, int& las)
+{
+	/*
+	m_currentTick = getTickCount();//printf("curr:%.0001f last:%.0001f delta:%.0001f\n", m_currentTick, m_lastTick, (m_currentTick - m_lastTick) );
+	m_deltaTime =  (m_currentTick - m_lastTick) / getTickFrequency();
+	m_lastTick = m_currentTick;
+	*/
+	cur++;
+	printf("last:%d current:%d delta:%f\n", last, current);
+	las = current;
+	//printf("last:%I64d current:%I64d delta:%f\n", last, current,m_deltaTime);
+	//printf("%f\n", m_deltaTime);
 }
 
 Point3f Tracker::get_2D_position()

@@ -203,10 +203,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="client_test.h" />
+    <ClInclude Include="counter_test.h" />
     <ClInclude Include="Tracker.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="client_test.cpp" />
+    <ClCompile Include="counter_test.cpp" />
     <ClCompile Include="Tracker.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

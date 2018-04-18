@@ -7,6 +7,7 @@
 #include<opencv2\opencv.hpp>
 
 #include"Tracker.h"
+#include"counter_test.h"
 
 #define PI 3.1415926536
 #define BALL_SIZE 4.0
@@ -35,6 +36,7 @@ bool showCircle = false;
 Point3f trackedPos;
 
 Tracker tracker;
+counter_test counte;
 
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 {
@@ -82,12 +84,13 @@ void showfilteredCam(Tracker tracker)
 	trackedPos = tracker.get_position();
 	frame = tracker.get_video_frame();
 	thresholdedFrame = tracker.get_binary_frame();
-
+	//tracker.get_delta_time();
+	//printf("curr:%I64i last:%I64i\n", tracker.m_currentTick, tracker.m_lastTick);
+	counte.increment();
 	if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255), 1, CV_AA, 0); }
 	if (showFilter == 0)
 	{imshow("cam_show", frame);}
 	else if (showFilter == 1) {imshow("cam_show", thresholdedFrame);}
-
 	showGraph();
 }
 
@@ -120,7 +123,7 @@ int main(int argc, char** argv)
 	namedWindow("client_test", WINDOW_AUTOSIZE);
 	imshow("client_test", menuBackground);
 
-	tracker = Tracker(BALL_RADIUS, FOCAL_LENGTH_PIXEL);
+	//tracker = Tracker(BALL_RADIUS, FOCAL_LENGTH_PIXEL);
 	tracker.init_tracker(cameraIndex, false);
 
 	int input = 0;
@@ -131,12 +134,14 @@ int main(int argc, char** argv)
 	float e1, e2, time;
 
 	while (input != 'q' && currentMode != -1 )
-	{
+	{showfilteredCam(tracker);input = waitKey(100);
+		/*
 		e1 = getTickCount();
-		showfilteredCam(tracker);
-		input = waitKey(20);
+		
+		
 		e2 = getTickCount();
 		time = (e2 - e1) / getTickFrequency();
+		*/
 		//cout << "time:" << time * 1000 << endl;
 	}
 	return 0;
