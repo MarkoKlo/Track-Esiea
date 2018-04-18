@@ -36,6 +36,7 @@ bool showCircle = false;
 Point3f trackedPos;
 
 Tracker tracker;
+int alpha;
 counter_test counte;
 
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //

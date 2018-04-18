@@ -49,11 +49,12 @@ void Tracker::track()
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
 		set_delta_time(m_currentTick,m_lastTick);
 
-		m_position = raw_position;
+		m_position = 0.5 * raw_position + (1.0-0.5) * (*m_lastPosition);
+		//m_position = raw_position;
 		m_speed = (*m_lastPosition - m_position) / m_deltaTime;
 
 		// Assignations de fin
-		*m_lastPosition = raw_position;
+		*m_lastPosition = m_position;
 		
 	}
 }
@@ -125,7 +126,7 @@ void Tracker::color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColo
 		Mat erodedFrame;
 		cvtColor(videoFrame, m_hsvFrame, CV_BGR2HSV);
 		inRange(m_hsvFrame, Scalar(filterColor.val[0] - m_hsvRange[0], filterColor.val[1] - hsvRange[1], filterColor.val[2] - hsvRange[2]),
-			Scalar(filterColor.val[0] + hsvRange[0], filterColor.val[1] + hsvRange[1], filterColor.val[2] + hsvRange[2]), binaryFrame);
+		Scalar(filterColor.val[0] + hsvRange[0], filterColor.val[1] + hsvRange[1], filterColor.val[2] + hsvRange[2]), binaryFrame);
 
 		erode(binaryFrame, erodedFrame, Mat(), Point(-1, -1), 2);
 		dilate(erodedFrame, filteredFrame, Mat(), Point(-1, -1), 2);
@@ -166,7 +167,7 @@ void Tracker::circle_fitting(Point3f& circleCoord,Mat& filteredFrame) // Donne l
 void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition)
 {
 	float radius = circleCoord.z;
-
+	if (radius < 0.0001) { return; }
 	// Centrage de la position
 	float x_px = circleCoord.x - 320; // Résolution hardcodée -> à changer
 	float y_px = 240 - circleCoord.y;
