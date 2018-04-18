@@ -86,12 +86,12 @@ void showfilteredCam(Tracker tracker)
 	thresholdedFrame = tracker.get_binary_frame();
 	//tracker.get_delta_time();
 	//printf("curr:%I64i last:%I64i\n", tracker.m_currentTick, tracker.m_lastTick);
-	counte.increment();
+	counte.track();
 	if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255), 1, CV_AA, 0); }
 	if (showFilter == 0)
 	{imshow("cam_show", frame);}
 	else if (showFilter == 1) {imshow("cam_show", thresholdedFrame);}
-	showGraph();
+	//showGraph();
 }
 
 int main(int argc, char** argv)
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
 	float e1, e2, time;
 
 	while (input != 'q' && currentMode != -1 )
-	{showfilteredCam(tracker);input = waitKey(100);
+	{showfilteredCam(tracker);input = waitKey(13);
 		/*
 		e1 = getTickCount();
 		

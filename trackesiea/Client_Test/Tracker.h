@@ -36,7 +36,7 @@ public:
 	Mat& get_video_frame();
 	Mat& get_binary_frame();
 
-	void get_delta_time(int& cur, int& las);
+	void set_delta_time(int64* m_currentTick,int64* las);
 
 private :
 
@@ -56,12 +56,10 @@ private :
 	Vec3i m_filterColor;
 
 	// Variables privées
-	Point3f m_lastPosition;
-	int64 m_currentTick;
-	int64 m_lastTick;
-	float m_deltaTime;
-	int last;
-	int current;
+	Point3f* m_lastPosition;
+	double m_deltaTime;
+	int64* m_currentTick;
+	int64* m_lastTick;
 
 	// Fonctions privées
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
