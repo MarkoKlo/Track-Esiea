@@ -36,6 +36,9 @@ public:
 	Mat& get_video_frame();
 	Mat& get_binary_frame();
 
+	enum filterType{simple_lowpass,oneEuro,noFiltering};
+	filterType m_filteringType;
+
 	void set_delta_time(int64* m_currentTick,int64* las);
 
 private :

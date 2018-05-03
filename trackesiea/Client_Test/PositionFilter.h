@@ -18,6 +18,7 @@ private:
 	Point3f m_lastPosition;
 
 	void LowPassFilter::clampAlpha(float& alpha);
+	void LowPassFilter::getAlpha(float rate,float cutoff);
 };
 
 class OneEuroFilter

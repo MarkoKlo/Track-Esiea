@@ -3,10 +3,11 @@
 using namespace std;
 using namespace cv;
 
+#define LOWPASS_ALPHA 0.5
 
 // Variables locales
 
-Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS)// Constructeur par défaut
+Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(simple_lowpass)// Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
@@ -14,7 +15,7 @@ Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS)// Con
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
-
+, m_filteringType(simple_lowpass)
 {
 	set_filter_range(Vec3i(25,80,80) );
 	set_filter_color(Vec3i(255,255,255) );
@@ -49,13 +50,22 @@ void Tracker::track()
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
 		set_delta_time(m_currentTick,m_lastTick);
 
-		m_position = 0.5 * raw_position + (1.0-0.5) * (*m_lastPosition);
-		//m_position = raw_position;
+		switch (m_filteringType)
+		{
+		case simple_lowpass:
+			m_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition);
+			break;
+		case oneEuro:
+			break;
+		case noFiltering:
+			m_position = raw_position;
+			break;
+		}
+
 		m_speed = (*m_lastPosition - m_position) / m_deltaTime;
 
 		// Assignations de fin
 		*m_lastPosition = m_position;
-		
 	}
 }
 
