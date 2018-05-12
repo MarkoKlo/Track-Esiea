@@ -32,11 +32,12 @@ public:
 	Point3f get_2D_position();
 	Point3f get_position();
 	Point3f get_speed();
+	bool is_tracking_valid();
 
 	Mat& get_video_frame();
 	Mat& get_binary_frame();
 
-	enum filterType{simple_lowpass,oneEuro,noFiltering};
+	enum filterType{simple_lowpass,multi_channel_lowpass,noFiltering};
 	filterType m_filteringType;
 
 	void set_delta_time(int64* m_currentTick,int64* las);
@@ -51,6 +52,7 @@ private :
 	Point3f m_2Dposition;
 	Point3f m_position;
 	Point3f m_speed;
+	bool m_isTrackingValid;
 
 	// Réglages
 	float m_focalLength;

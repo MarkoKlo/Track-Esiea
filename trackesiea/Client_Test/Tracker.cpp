@@ -4,10 +4,11 @@ using namespace std;
 using namespace cv;
 
 #define LOWPASS_ALPHA 0.5
+#define Z_LOWPASS_SMOOTHING 0.5
 
 // Variables locales
 
-Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(simple_lowpass)// Constructeur par défaut
+Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass)// Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
@@ -26,6 +27,10 @@ Tracker::~Tracker()
 {
 	free(m_currentTick); free(m_lastTick);
 }
+
+/*
+FONCTIONS PUBLIQUES
+*/
 
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
 {
@@ -50,19 +55,25 @@ void Tracker::track()
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
 		set_delta_time(m_currentTick,m_lastTick);
 
-		switch (m_filteringType)
+		if (m_isTrackingValid)
 		{
-		case simple_lowpass:
-			m_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition);
-			break;
-		case oneEuro:
-			break;
-		case noFiltering:
-			m_position = raw_position;
-			break;
+			switch (m_filteringType)
+			{
+			case simple_lowpass:
+				m_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition);
+				break;
+			case multi_channel_lowpass:
+				m_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition).x;
+				m_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition).y;
+				m_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (*m_lastPosition).z;
+				break;
+			case noFiltering:
+				m_position = raw_position;
+				break;
+			}
+			
+			m_speed = (*m_lastPosition - m_position) / m_deltaTime;
 		}
-
-		m_speed = (*m_lastPosition - m_position) / m_deltaTime;
 
 		// Assignations de fin
 		*m_lastPosition = m_position;
@@ -128,6 +139,15 @@ Point3f Tracker::get_speed()
 	return m_speed;
 }
 
+bool Tracker::is_tracking_valid()
+{
+	return m_isTrackingValid;
+}
+
+/*
+FONCTIONS DE TRACKING PRIVEES
+*/
+
 void Tracker::color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor,Mat& filteredFrame) // Filtre la couleur
 {
 	if (!videoFrame.empty())
@@ -177,7 +197,11 @@ void Tracker::circle_fitting(Point3f& circleCoord,Mat& filteredFrame) // Donne l
 void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition)
 {
 	float radius = circleCoord.z;
-	if (radius < 0.0001) { return; }
+
+	// Vérification si le rayon est valide (supérieur à 1 pixel et inférieur à 240 pixels)
+	if (radius < 1 || radius > 240) { m_isTrackingValid = false; return; }
+	else { m_isTrackingValid = true; }
+
 	// Centrage de la position
 	float x_px = circleCoord.x - 320; // Résolution hardcodée -> à changer
 	float y_px = 240 - circleCoord.y;
