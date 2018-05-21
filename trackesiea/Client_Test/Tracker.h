@@ -4,6 +4,7 @@
 #include<math.h>
 #include<opencv2\opencv.hpp>
 #include<opencv2\world.hpp>
+#include<libusb.h>
 
 #define PI 3.1415926536
 #define BALL_RADIUS 2.0
