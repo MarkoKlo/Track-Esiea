@@ -9,6 +9,9 @@
 #define BALL_RADIUS 2.0
 #define PSEYE_FOCAL 550.0
 
+#define LOWPASS_ALPHA 0.5
+#define Z_LOWPASS_SMOOTHING 0.5
+
 /*
 Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
 */

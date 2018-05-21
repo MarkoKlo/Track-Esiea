@@ -3,10 +3,11 @@
 using namespace std;
 using namespace cv;
 
-#define LOWPASS_ALPHA 0.5
-#define Z_LOWPASS_SMOOTHING 0.5
+//#define USE_PS3EYEDRIVER
 
-// Variables locales
+/*
+Constructeurs
+*/
 
 Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass)// Constructeur par défaut
 {
@@ -34,12 +35,16 @@ FONCTIONS PUBLIQUES
 
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
 {
+#ifdef USE_PS3EYEDRIVER
+
+#else
 	m_videoCap = VideoCapture(cameraIndex);
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
 	m_currentTick = (int64*)malloc(sizeof(int64));
 	m_lastTick = (int64*)malloc(sizeof(int64));
 	track();
+#endif
 }
 
 void Tracker::track()
