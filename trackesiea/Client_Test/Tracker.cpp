@@ -45,11 +45,12 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	ctx.eye->setGain(m_gain);
 	ctx.eye->setAutoWhiteBalance(false);
 	ctx.eye->setBlueBalance(127); ctx.eye->setRedBalance(127); ctx.eye->setGreenBalance(127);
+	ctx.eye->setFrameRate(60);
 	m_videoFrame = Mat(480, 640, CV_8UC3, Scalar(0, 0, 0)); // Allocation d'un mat (8U : unsigned int 8bit), (C3 3 canaux) et initialisé au noir
 	ctx.eye->start();
 #else
 	m_videoCap = VideoCapture(cameraIndex);
-	if (!m_videoCap) { printf("Aucune caméra connectée !\n"); return; }
+	if (!m_videoCap.isOpened()) { printf("Aucune caméra connectée !\n"); return; }
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
 #endif
@@ -75,7 +76,7 @@ void Tracker::track()
 		circle_fitting(m_2Dposition,m_filteredFrame);
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
 		set_delta_time(m_currentTick,m_lastTick);
-
+		
 		if (m_isTrackingValid)
 		{
 			switch (m_filteringType)
@@ -203,6 +204,11 @@ Point3f Tracker::get_position()
 Point3f Tracker::get_speed()
 {
 	return m_speed;
+}
+
+float Tracker::get_tracking_rate()
+{
+	return 1.0 / m_deltaTime;
 }
 
 bool Tracker::is_tracking_valid()

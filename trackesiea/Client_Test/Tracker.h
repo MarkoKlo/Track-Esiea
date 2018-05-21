@@ -68,6 +68,7 @@ public:
 	Point3f get_2D_position();
 	Point3f get_position();
 	Point3f get_speed();
+	float get_tracking_rate();
 	bool is_tracking_valid();
 
 	Mat& get_video_frame();
@@ -91,7 +92,7 @@ private :
 	Point3f m_position;
 	Point3f m_speed;
 	bool m_isTrackingValid;
-
+	float m_trackingRate;
 	int m_exposure;
 	int m_gain;
 

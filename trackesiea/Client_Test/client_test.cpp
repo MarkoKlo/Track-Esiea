@@ -87,7 +87,7 @@ void showfilteredCam()
 	trackedPos = tracker.get_position();
 	frame = tracker.get_video_frame();
 	thresholdedFrame = tracker.get_binary_frame();
-
+	cout << "Tracking Rate: " << tracker.get_tracking_rate() << endl;
 	counte.track();
 	showGraph();
 
@@ -137,7 +137,7 @@ int main(int argc, char** argv)
 
 	while (input != 'q' && currentMode != -1 )
 	{
-		showfilteredCam();input = waitKey(13);
+		showfilteredCam();input = waitKey(1);
 	}
 	return 0;
 }
