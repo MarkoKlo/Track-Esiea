@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Tracker.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="client_test.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="counter_test.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\PS3EYEDriver\src\ps3eye.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="client_test.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="counter_test.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Tracker.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\PS3EYEDriver\src\ps3eye.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{673460ea-7190-4d85-b7e3-e095ec23d956}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources">
+      <UniqueIdentifier>{5da6f670-786b-41f8-81fe-7809df0b41c1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

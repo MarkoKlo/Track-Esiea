@@ -3,13 +3,12 @@
 using namespace std;
 using namespace cv;
 
-//#define USE_PS3EYEDRIVER
-
 /*
 Constructeurs
 */
 
-Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass)// Constructeur par défaut
+Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass), m_exposure(8),
+m_gain(8), initialized(false)// Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
@@ -17,7 +16,7 @@ Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_fi
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
-, m_filteringType(simple_lowpass)
+, m_exposure(10), m_gain(10), m_filteringType(simple_lowpass),initialized(false)
 {
 	set_filter_range(Vec3i(25,80,80) );
 	set_filter_color(Vec3i(255,255,255) );
@@ -33,23 +32,40 @@ Tracker::~Tracker()
 FONCTIONS PUBLIQUES
 */
 
+#ifdef USE_PS3EYEDRIVER
+ps3eye_context ctx(640,480,60);
+#endif
+
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
 {
 #ifdef USE_PS3EYEDRIVER
-
+	if (!ctx.hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
+	ctx.eye->setFlip(true); /* miroir left-right */
+	ctx.eye->setExposure(m_exposure);
+	ctx.eye->setGain(m_gain);
+	ctx.eye->setAutoWhiteBalance(false);
+	ctx.eye->setBlueBalance(127); ctx.eye->setRedBalance(127); ctx.eye->setGreenBalance(127);
+	m_videoFrame = Mat(480, 640, CV_8UC3, Scalar(0, 0, 0)); // Allocation d'un mat (8U : unsigned int 8bit), (C3 3 canaux) et initialisé au noir
+	ctx.eye->start();
 #else
 	m_videoCap = VideoCapture(cameraIndex);
+	if (!m_videoCap) { printf("Aucune caméra connectée !\n"); return; }
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
+#endif
 	m_currentTick = (int64*)malloc(sizeof(int64));
 	m_lastTick = (int64*)malloc(sizeof(int64));
+	initialized = true;
 	track();
-#endif
 }
 
 void Tracker::track()
 {
+#ifdef USE_PS3EYEDRIVER
+	ctx.eye->getFrame(m_videoFrame.data); // Lecture du flux camera
+#else
 	m_videoCap.read(m_videoFrame); // Lecture du flux camera
+#endif
 
 	if (!m_videoFrame.empty())
 	{
@@ -95,9 +111,49 @@ void Tracker::set_filter_range(Vec3i hsvRange) // Règle la tolérance du filtre
 	m_hsvRange = hsvRange;
 }
 
+void Tracker::set_gain(int gain)
+{
+#ifdef USE_PS3EYEDRIVER
+	m_gain = gain;
+	ctx.eye->setGain(m_gain);
+#endif
+}
+
+void Tracker::set_exposure(int exposure)
+{
+#ifdef USE_PS3EYEDRIVER
+	m_exposure = exposure;
+	ctx.eye->setGain(m_exposure);
+#endif
+}
+
 Vec3i Tracker::get_hsv_color(Point2i coordinates)
 {
-	return m_hsvFrame.at<Vec3b>(Point(coordinates.x, coordinates.y));
+	Vec3i col = m_hsvFrame.at<Vec3b>(Point(coordinates.x, coordinates.y));
+	col += m_hsvFrame.at<Vec3b>(Point(coordinates.x - 0, coordinates.y - 1));
+	col += m_hsvFrame.at<Vec3b>(Point(coordinates.x - 0, coordinates.y + 1));
+	col += m_hsvFrame.at<Vec3b>(Point(coordinates.x - 1, coordinates.y - 0));
+	col += m_hsvFrame.at<Vec3b>(Point(coordinates.x + 1, coordinates.y - 0));
+	return col / 5;
+}
+
+Vec3i Tracker::get_fullscreen_average_hsv_color()
+{
+	Vec3i color = Vec3i(0,0,0);
+	int divider = 0;
+	for (int i = 0; i < 640; i++)
+	{
+		for (int j = 0; j < 480; j++)
+		{
+			Vec3i col = m_hsvFrame.at<Vec3b>(Point(i, j));
+			if(col.val[2] > 10 ){
+			color += col;
+			divider++;}
+			
+		}
+	}
+	color /= divider;
+	return color;
 }
 
 Vec3i Tracker::get_filter_color()
@@ -113,6 +169,11 @@ Vec3i Tracker::get_filter_range()
 Mat& Tracker::get_video_frame()
 {
 	return m_videoFrame;
+}
+
+Mat& Tracker::get_hsv_frame()
+{
+	return m_hsvFrame;
 }
 
 Mat& Tracker::get_binary_frame()

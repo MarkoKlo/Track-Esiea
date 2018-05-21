@@ -58,6 +58,7 @@ void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
 		Vec3i color = tracker.get_hsv_color(Point2i(x, y));
 		printf_s("Couleur changee : %d %d %d \n", color.val[0], color.val[1], color.val[2]);
 		tracker.set_filter_color(color);
+
 	}
 }
 

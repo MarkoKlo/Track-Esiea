@@ -1,10 +1,20 @@
 // source code from https://github.com/inspirit/PS3EYEDriver
-#include "stdafx.h"
+#include<stdio.h>
+#include<tchar.h>
 #include "ps3eye.h"
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+
+// Code afin que libusb fonctionne sous Visual Studio 2017
+#pragma comment(lib, "legacy_stdio_definitions.lib")
+#ifdef __cplusplus
+FILE iob[] = { *stdin, *stdout, *stderr };
+extern "C" {
+	FILE * __cdecl _iob(void) { return iob; }
+}
+#endif
 
 #if defined WIN32 || defined _WIN32 || defined WINCE
 	#include <windows.h>
