@@ -9,7 +9,6 @@
 #include"Tracker.h"
 #include"counter_test.h"
 
-#define PI 3.1415926536
 #define BALL_SIZE 4.0
 #define BALL_RADIUS 2.0
 #define TEST_FOCAL_LENGTH 263.75
