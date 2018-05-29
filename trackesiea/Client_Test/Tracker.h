@@ -132,7 +132,7 @@ private :
 	// Ouvre un fichier de configuration et assigne les variables du programme en conséquence
 	void load_params();
 	// Retourne une matrice de rotation autour d'un axe et d'un angle theta
-	Mat Tracker::rotation_matrix(Point3f axis, float angle);
+	Matx33f Tracker::rotation_matrix(Point3f axis, float angle);
 	// Détermine la matrice de rotation
 	void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis);
 };

@@ -442,36 +442,49 @@ void Tracker::save_params()
 }
 
 // Maths : https://fr.wikipedia.org/wiki/Matrice_de_rotation
-Mat Tracker::rotation_matrix(Point3f axis, float angle)
+Matx33f Tracker::rotation_matrix(Point3f axis, float angle)
 {
 	float c = cos(angle); // en radians
 	float s = sin(angle);
 
-	Mat mat = Mat(3,3,CV_32FC1);
-	mat.at<float>(0, 0) = axis.x * axis.x * (1 - c) + c; // Premiere ligne Premiere colonne
-	mat.at<float>(1, 0) = axis.x * axis.y * (1 - c) + axis.z * s; // Deuxieme ligne Deuxieme colonne
-	mat.at<float>(2, 0) = axis.x * axis.z * (1 - c) - axis.y * s;
+	//Matx33f mat = 
+	Matx33f m(axis.x * axis.x * (1 - c) + c         , axis.x * axis.y * (1 - c) - axis.z * s , axis.x * axis.z * (1 - c) + axis.y * s,
+			  axis.x * axis.y * (1 - c) + axis.z * s, axis.y * axis.y * (1 - c) + c			 , axis.y * axis.z * (1 - c) - axis.x * s,
+			  axis.x * axis.z * (1 - c) - axis.y * s, axis.y * axis.z * (1 - c) + axis.x * s , axis.z * axis.z * (1 - c) + c			);
 
-	mat.at<float>(0, 1) = axis.x * axis.y * (1 - c) - axis.z * s;
-	mat.at<float>(1, 1) = axis.y * axis.y * (1 - c) + c;
-	mat.at<float>(2, 1) = axis.y * axis.z * (1 - c) + axis.x * s;
-
-	mat.at<float>(0, 2) = axis.x * axis.z * (1 - c) + axis.y * s;
-	mat.at<float>(1, 2) = axis.y * axis.z * (1 - c) - axis.x * s;
-	mat.at<float>(2, 2) = axis.z * axis.z * (1 - c) + c;
-
-	return mat;
+	return m;
 }
 
 void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
 {
-	Point3f nwz = normalize(z_world_axis); // Axe Z absolu normalisé
-	Point3f cza = Point3f(0, 0, 1); // Axe Z caméra
+	Point3f nwz = normalize(z_world_axis); // Normalized World Z - Axe Z absolu normalisé
+	Point3f cza = Point3f(0, 0, 1); // Camera Z Axis - Axe Z caméra
 	Point3f rotationAxis =
 	Point3f(nwz.y * cza.z - nwz.z * cza.y,
 		    nwz.z * cza.x - nwz.x * cza.z,
 		    nwz.x * cza.y - nwz.y * cza.x); // Produit vectoriel
 
-	Mat tempRotMatrix = rotation_matrix(rotationAxis,0.0);
+	Matx33f tempRotMatrix = rotation_matrix(rotationAxis,0.0);
+	Point3f rCza = tempRotMatrix * cza; // rotated Cza
+	float dotProduct = nwz.x * rCza.x + nwz.y * rCza.y + nwz.z * rCza.z;
+
+	const float dotAccuracy = 0.1; float epsilon = 0.1; int counter = 0; float theta = PI / 2;
+	while (dotProduct < 1 - dotAccuracy && counter < 1000 ) // Tant que l'on a pas atteint une certaine précision
+	{
+		tempRotMatrix = rotation_matrix(rotationAxis, theta); // On calcule une nouvelle matrice de rotation avec theta
+		rCza = tempRotMatrix * cza; // On fait tourner le vecteur de theta
+		float newDotProduct = nwz.x * rCza.x + nwz.y * rCza.y + nwz.z * rCza.z; // On calcule le nouveau produit vectoriel obtenu
+		if(newDotProduct > dotProduct) // Si on s'approche du vecteur recherché
+		{
+			theta = theta + epsilon;
+		}
+		else 
+		{
+			epsilon = epsilon / 2;
+			theta = theta - epsilon;
+		}
+
+	}
+	
 
 }
