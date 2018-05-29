@@ -5,6 +5,7 @@
 #include<opencv2\opencv.hpp>
 #include<opencv2\world.hpp>
 #include"ps3eye.h"
+#include"libconfig.h++"
 
 #define PI 3.1415926536
 #define BALL_RADIUS 2.0
@@ -13,6 +14,8 @@
 
 #define LOWPASS_ALPHA 0.5
 #define Z_LOWPASS_SMOOTHING 0.5
+
+#define CONFIG_FILE_PATH "configuration.cfg"
 
 // PS3Eye Driver
 struct ps3eye_context {
@@ -80,6 +83,11 @@ public:
 
 	void set_delta_time(int64* m_currentTick,int64* las);
 
+	int resolutionX;
+	int resolutionY;
+	// Sauvegarde les valeurs actuelles dans un fichier de configuration
+	void save_params();
+
 private :
 
 	// Variables accessibles via les fonctions d'accès
@@ -91,6 +99,11 @@ private :
 	Point3f m_2Dposition;
 	Point3f m_position;
 	Point3f m_speed;
+
+	Mat camToWorld_rotation;
+	Point3f m_world_position;
+	Point3f m_world_origin;
+
 	bool m_isTrackingValid;
 	float m_trackingRate;
 	int m_exposure;
@@ -100,7 +113,8 @@ private :
 	float m_focalLength;
 	float m_ballRadius;
 	Vec3i m_hsvRange;
-	Vec3i m_filterColor;
+		// En espace HSV
+		Vec3i m_filterColor;
 
 	// Variables privées
 	Point3f* m_lastPosition;
@@ -113,6 +127,13 @@ private :
 	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
 	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
 	std::vector<Point> get_largest_contour(std::vector<std::vector<Point> > contours);
-
+	// Crée un nouveau fichier de configuration avec les paramètres par défaut
+	void new_file_params();
+	// Ouvre un fichier de configuration et assigne les variables du programme en conséquence
+	void load_params();
+	// Retourne une matrice de rotation autour d'un axe et d'un angle theta
+	Mat Tracker::rotation_matrix(Point3f axis, float angle);
+	// Détermine la matrice de rotation
+	void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis);
 };
 

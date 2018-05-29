@@ -194,11 +194,11 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release - Antoine2|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)opencv341_64\include;$(SolutionDir)libusb-1.0\include\libusb-1.0;$(SolutionDir)PS3EYEDriver\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)opencv341_64\include;$(SolutionDir)libusb-1.0\include\libusb-1.0;$(SolutionDir)PS3EYEDriver\src;$(SolutionDir)libconfig_x64\header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)opencv341_64\lib;$(SolutionDir)libusb-1.0\MS64\static;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world341.lib;libusb-1.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)opencv341_64\lib;$(SolutionDir)libusb-1.0\MS64\static;$(SolutionDir)libconfig_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world341.lib;libusb-1.0.lib;libconfig++.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

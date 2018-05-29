@@ -2,13 +2,14 @@
 
 using namespace std;
 using namespace cv;
+using namespace libconfig;
 
 /*
 Constructeurs
 */
 
 Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass), m_exposure(8),
-m_gain(8), initialized(false)// Constructeur par défaut
+m_gain(8), initialized(false), resolutionX(640), resolutionY(480) // Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
@@ -16,7 +17,7 @@ m_gain(8), initialized(false)// Constructeur par défaut
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
-, m_exposure(10), m_gain(10), m_filteringType(simple_lowpass),initialized(false)
+, m_exposure(10), m_gain(10), m_filteringType(simple_lowpass), initialized(false), resolutionX(640), resolutionY(480)
 {
 	set_filter_range(Vec3i(25,80,80) );
 	set_filter_color(Vec3i(255,255,255) );
@@ -33,21 +34,23 @@ FONCTIONS PUBLIQUES
 */
 
 #ifdef USE_PS3EYEDRIVER
-ps3eye_context ctx(640,480,60);
+ps3eye_context* ctx;
 #endif
 
 void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tracker
 {
+	load_params();
 #ifdef USE_PS3EYEDRIVER
-	if (!ctx.hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
-	ctx.eye->setFlip(true); /* miroir left-right */
-	ctx.eye->setExposure(m_exposure);
-	ctx.eye->setGain(m_gain);
-	ctx.eye->setAutoWhiteBalance(false);
-	ctx.eye->setBlueBalance(127); ctx.eye->setRedBalance(127); ctx.eye->setGreenBalance(127);
-	ctx.eye->setFrameRate(60);
+	ctx = new ps3eye_context(resolutionX, resolutionY, 60);
+	if (!ctx->hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
+	ctx->eye->setFlip(true); /* miroir left-right */
+	ctx->eye->setExposure(m_exposure);
+	ctx->eye->setGain(m_gain);
+	ctx->eye->setAutoWhiteBalance(false);
+	ctx->eye->setBlueBalance(127); ctx->eye->setRedBalance(127); ctx->eye->setGreenBalance(127);
+	ctx->eye->setFrameRate(60);
 	m_videoFrame = Mat(480, 640, CV_8UC3, Scalar(0, 0, 0)); // Allocation d'un mat (8U : unsigned int 8bit), (C3 3 canaux) et initialisé au noir
-	ctx.eye->start();
+	ctx->eye->start();
 #else
 	m_videoCap = VideoCapture(cameraIndex);
 	if (!m_videoCap.isOpened()) { printf("Aucune caméra connectée !\n"); return; }
@@ -63,7 +66,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 void Tracker::track()
 {
 #ifdef USE_PS3EYEDRIVER
-	ctx.eye->getFrame(m_videoFrame.data); // Lecture du flux camera
+	ctx->eye->getFrame(m_videoFrame.data); // Lecture du flux camera
 #else
 	m_videoCap.read(m_videoFrame); // Lecture du flux camera
 #endif
@@ -72,9 +75,9 @@ void Tracker::track()
 	{
 		// Calculs de positions
 		Point3f raw_position = Point3f(0, 0, 0);
-		color_filtering(m_videoFrame, m_hsvRange, m_filterColor, m_filteredFrame); // On filtre la couleur
-		circle_fitting(m_2Dposition,m_filteredFrame);
-		mono_position_estimation(m_focalLength, m_2Dposition, raw_position);
+		color_filtering(m_videoFrame, m_hsvRange, m_filterColor, m_filteredFrame); // Filtrage de la couleur
+		circle_fitting(m_2Dposition,m_filteredFrame); // Détection de la couleur
+		mono_position_estimation(m_focalLength, m_2Dposition, raw_position); // Estimation
 		set_delta_time(m_currentTick,m_lastTick);
 		
 		if (m_isTrackingValid)
@@ -116,7 +119,7 @@ void Tracker::set_gain(int gain)
 {
 #ifdef USE_PS3EYEDRIVER
 	m_gain = gain;
-	ctx.eye->setGain(m_gain);
+	ctx->eye->setGain(m_gain);
 #endif
 }
 
@@ -124,7 +127,7 @@ void Tracker::set_exposure(int exposure)
 {
 #ifdef USE_PS3EYEDRIVER
 	m_exposure = exposure;
-	ctx.eye->setGain(m_exposure);
+	ctx->eye->setGain(m_exposure);
 #endif
 }
 
@@ -302,4 +305,173 @@ void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f
 	outPosition.x = X_cm;
 	outPosition.y = Y_cm;
 	outPosition.z = Z_cm;
+}
+
+void Tracker::new_file_params()
+{
+	// Création de l'objet Configuration et ajout des groupes de paramètres
+	Config cfg;
+	Setting& root = cfg.getRoot();
+	Setting& camParams = root.add("camera", Setting::TypeGroup);
+	Setting& trackingParams = root.add("tracking", Setting::TypeGroup);
+	Setting& filterParams = trackingParams.add("filter", Setting::TypeGroup);
+
+	// Ajout des paramètres par défaut pour la partie caméra
+	camParams.add("resolutionX", Setting::TypeInt) = 640;
+	camParams.add("resolutionY", Setting::TypeInt) = 480;
+	camParams.add("gain", Setting::TypeInt) = 10;
+	camParams.add("exposure", Setting::TypeInt) = 10;
+
+	// Ajout des paramètres par défaut pour la partie tracking
+	trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass";
+
+	filterParams.add("colorHue", Setting::TypeInt) = 0;
+	filterParams.add("colorSat", Setting::TypeInt) = 100;
+	filterParams.add("colorVal", Setting::TypeInt) = 100;
+
+	filterParams.add("toleranceHue", Setting::TypeInt) = 25;
+	filterParams.add("toleranceSat", Setting::TypeInt) = 80;
+	filterParams.add("toleranceVal", Setting::TypeInt) = 80;
+
+	try
+	{
+		cfg.writeFile(CONFIG_FILE_PATH);
+		cout << "Nouveau fichier configuration : " << CONFIG_FILE_PATH << endl;
+
+	}
+	catch (const FileIOException &fioex)
+	{
+		cout << "Erreur d'ecriture de : " << CONFIG_FILE_PATH << endl;
+	}
+
+}
+
+void Tracker::load_params()
+{
+	Config cfg;
+
+	try
+	{
+		cfg.readFile(CONFIG_FILE_PATH);
+		cout << "Fichier configuration ouvert : " << CONFIG_FILE_PATH << endl;
+	}
+	catch (const FileIOException &fioex)
+	{
+		cout << "Erreur de lecture... creation d'un nouveau fichier... " << CONFIG_FILE_PATH << endl;
+		new_file_params();
+		return;
+	}
+	Setting& root = cfg.getRoot();
+	try 
+	{
+		Setting& camParams = root["camera"];
+		Setting& trackingParams = root["tracking"];
+		Setting& filterParams = trackingParams["filter"];
+
+		// Assignation des variables camera
+		camParams.lookupValue("resolutionX", resolutionX);
+		camParams.lookupValue("resolutionY", resolutionY);
+		camParams.lookupValue("gain", m_gain);
+		camParams.lookupValue("exposure", m_exposure);
+
+
+		// Assignation des variables filtre
+		string filtertype;
+		trackingParams.lookupValue("filterType", filtertype); // simple_lowpass,multi_channel_lowpass,noFiltering
+		if (filtertype == "simple_lowpass") { m_filteringType = simple_lowpass; }
+		else if (filtertype == "multi_channel_lowpass") { m_filteringType = multi_channel_lowpass; }
+		else if (filtertype == "noFiltering") { m_filteringType = noFiltering; }
+	
+		int h, s, v;
+		filterParams.lookupValue("colorHue", h);
+		filterParams.lookupValue("colorSat", s);
+		filterParams.lookupValue("colorVal", v);
+		set_filter_color( Vec3i(h, s, v) );
+
+		filterParams.lookupValue("toleranceHue", h);
+		filterParams.lookupValue("toleranceSat", s);
+		filterParams.lookupValue("toleranceVal", v);
+		set_filter_range( Vec3i(h, s, v) );
+
+		cout << "Values correctely set : " << "H:" << m_filterColor.val[0] << " S:" << m_filterColor[1] << " V:" << m_filterColor[2] << endl;
+	}
+	catch (const SettingNotFoundException &nfex)
+	{
+		cout << "Erreur de paramètres dans le fichier." << endl;
+	}
+}
+
+void Tracker::save_params()
+{
+	// Création de l'objet Configuration et ajout des groupes de paramètres
+	Config cfg;
+	Setting& root = cfg.getRoot();
+	Setting& camParams = root.add("camera", Setting::TypeGroup);
+	Setting& trackingParams = root.add("tracking", Setting::TypeGroup);
+	Setting& filterParams = trackingParams.add("filter", Setting::TypeGroup);
+
+	// Ajout des paramètres par défaut pour la partie caméra
+	camParams.add("resolutionX", Setting::TypeInt) = resolutionX;
+	camParams.add("resolutionY", Setting::TypeInt) = resolutionY;
+	camParams.add("gain", Setting::TypeInt) = m_gain;
+	camParams.add("exposure", Setting::TypeInt) = m_exposure;
+
+	// Ajout des paramètres par défaut pour la partie tracking
+	if (m_filteringType == simple_lowpass){ trackingParams.add("filterType", Setting::TypeString) = "simple_lowpass"; }
+	else if (m_filteringType == multi_channel_lowpass) { trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass"; }
+	else if (m_filteringType == noFiltering) { trackingParams.add("filterType", Setting::TypeString) = "noFiltering"; }
+
+	filterParams.add("colorHue", Setting::TypeInt) = m_filterColor.val[0];
+	filterParams.add("colorSat", Setting::TypeInt) = m_filterColor.val[1];
+	filterParams.add("colorVal", Setting::TypeInt) = m_filterColor.val[2];
+
+	filterParams.add("toleranceHue", Setting::TypeInt) = m_hsvRange.val[0];
+	filterParams.add("toleranceSat", Setting::TypeInt) = m_hsvRange.val[1];
+	filterParams.add("toleranceVal", Setting::TypeInt) = m_hsvRange.val[2];
+
+	try
+	{
+		cfg.writeFile(CONFIG_FILE_PATH);
+		cout << "Fichier configuration remplace : " << CONFIG_FILE_PATH << endl;
+
+	}
+	catch (const FileIOException &fioex)
+	{
+		cout << "Erreur d'ecriture de : " << CONFIG_FILE_PATH << endl;
+	}
+}
+
+// Maths : https://fr.wikipedia.org/wiki/Matrice_de_rotation
+Mat Tracker::rotation_matrix(Point3f axis, float angle)
+{
+	float c = cos(angle); // en radians
+	float s = sin(angle);
+
+	Mat mat = Mat(3,3,CV_32FC1);
+	mat.at<float>(0, 0) = axis.x * axis.x * (1 - c) + c; // Premiere ligne Premiere colonne
+	mat.at<float>(1, 0) = axis.x * axis.y * (1 - c) + axis.z * s; // Deuxieme ligne Deuxieme colonne
+	mat.at<float>(2, 0) = axis.x * axis.z * (1 - c) - axis.y * s;
+
+	mat.at<float>(0, 1) = axis.x * axis.y * (1 - c) - axis.z * s;
+	mat.at<float>(1, 1) = axis.y * axis.y * (1 - c) + c;
+	mat.at<float>(2, 1) = axis.y * axis.z * (1 - c) + axis.x * s;
+
+	mat.at<float>(0, 2) = axis.x * axis.z * (1 - c) + axis.y * s;
+	mat.at<float>(1, 2) = axis.y * axis.z * (1 - c) - axis.x * s;
+	mat.at<float>(2, 2) = axis.z * axis.z * (1 - c) + c;
+
+	return mat;
+}
+
+void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
+{
+	Point3f nwz = normalize(z_world_axis); // Axe Z absolu normalisé
+	Point3f cza = Point3f(0, 0, 1); // Axe Z caméra
+	Point3f rotationAxis =
+	Point3f(nwz.y * cza.z - nwz.z * cza.y,
+		    nwz.z * cza.x - nwz.x * cza.z,
+		    nwz.x * cza.y - nwz.y * cza.x); // Produit vectoriel
+
+	Mat tempRotMatrix = rotation_matrix(rotationAxis,0.0);
+
 }

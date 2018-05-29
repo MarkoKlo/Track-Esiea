@@ -41,8 +41,8 @@ counter_test counte;
 void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 {
 	if (event == EVENT_LBUTTONUP) {
-		if (x > 11 && x < 628 && y>267 && y < 374) { currentMode = 3; destroyWindow("image_show"); // Afficher la camera
-		namedWindow("cam_show", WINDOW_AUTOSIZE);
+		if (x > 11 && x < 628 && y>267 && y < 374) { // Sauvegarde
+			tracker.save_params();
 		}
 		
 		if (x > 12 && x < 301 && y>409 && y < 516) { showFilter = !showFilter; } // Activer/Desactiver le filtre
@@ -86,7 +86,7 @@ void showfilteredCam()
 	trackedPos = tracker.get_position();
 	frame = tracker.get_video_frame();
 	thresholdedFrame = tracker.get_binary_frame();
-	cout << "Tracking Rate: " << tracker.get_tracking_rate() << endl;
+	//cout << "Tracking Rate: " << tracker.get_tracking_rate() << endl;
 	counte.track();
 	showGraph();
 
@@ -119,8 +119,6 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	int cameraIndex = 0;
-	cout << "Entrer le numero de la camera : " << endl;
-	scanf_s("%d", &cameraIndex);
 
 	namedWindow("client_test", WINDOW_AUTOSIZE);
 	imshow("client_test", menuBackground);
@@ -128,7 +126,7 @@ int main(int argc, char** argv)
 	tracker.init_tracker(cameraIndex, false);
 
 	int input = 0;
-	hsvRange.val[0] = 25; hsvRange.val[1] = 60; hsvRange.val[2] = 80;
+	hsvRange = tracker.get_filter_range();
 	trackedPos.x = 0; trackedPos.y = 0;
 	
 	setMouseCallback("client_test", onMouseEventMenu, NULL);
@@ -136,7 +134,7 @@ int main(int argc, char** argv)
 
 	while (input != 'q' && currentMode != -1 )
 	{
-		showfilteredCam();input = waitKey(1);
+		showfilteredCam();input = waitKey(10);
 	}
 	return 0;
 }
