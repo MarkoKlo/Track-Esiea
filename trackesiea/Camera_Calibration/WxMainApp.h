@@ -12,6 +12,15 @@ public:
 
 private:
 	wxFrame *mainfrm;
+	wxBoxSizer *sizerVmain;
+
+
+	wxPanel *panelCalibration;
+	wxBoxSizer *boxSizerCalibration;
+	wxStaticBoxSizer *staticBoxSizerCalibration;
+
+	wxBoxSizer *boxSizerCameraOption;
+	wxComboBox *comboBoxSelectCamera;
 };
 
 
