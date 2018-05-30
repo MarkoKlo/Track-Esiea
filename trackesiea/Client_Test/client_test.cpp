@@ -44,6 +44,13 @@ void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
 		if (x > 11 && x < 628 && y>267 && y < 374) { // Sauvegarde
 			tracker.save_params();
 		}
+		if (x > 0 && x < 85 && y>588 && y < 640) { // Origine
+			tracker.set_world_origin();
+		}
+		if (x > 104 && x < 183 && y>588 && y < 640) { // Zaxis
+			tracker.set_world_zaxis();
+			tracker.calibrate_camera_pose();
+		}
 		
 		if (x > 12 && x < 301 && y>409 && y < 516) { showFilter = !showFilter; } // Activer/Desactiver le filtre
 		if (x > 339 && x < 628 && y>409 && y < 516) { showCircle = !showCircle; } // Afficher le cercle
@@ -65,7 +72,9 @@ void showGraph()
 {
 	Point3f speed = tracker.get_speed();
 	Mat debugGraphFrame = debugGraph.clone();
-	circle(debugGraphFrame, Point((trackedPos.x*5.0 + 500), trackedPos.z*5.0), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
+	Point3f camPosition = tracker.get_camera_world_position();
+	circle(debugGraphFrame, Point((trackedPos.x*5.0 + 500), trackedPos.z*5.0+500), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
+	circle(debugGraphFrame, Point((camPosition.x*5.0 + 500), camPosition.z*5.0 + 500), 2, Scalar(255, 255, 0), 2, -1, 0); // CameraPosition
 	char debugText[100]; sprintf_s(debugText, "X:%.1fcm  Y:%.1fcm Z: %.1fcm dX:%.1fcm  dY:%.1fcm dZ: %.1fcm", trackedPos.x, trackedPos.y, trackedPos.z,
 	speed.x,speed.y, speed.z);
 	putText(debugGraphFrame, debugText, Point2i(10, 975), CV_FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 0), 2, LINE_AA);
@@ -83,7 +92,7 @@ void showfilteredCam()
 	tracker.set_filter_range(hsvRange);
 	tracker.track();
 	Point3f trackedPos2D = tracker.get_2D_position();
-	trackedPos = tracker.get_position();
+	trackedPos = tracker.get_world_position();
 	frame = tracker.get_video_frame();
 	thresholdedFrame = tracker.get_binary_frame();
 	//cout << "Tracking Rate: " << tracker.get_tracking_rate() << endl;

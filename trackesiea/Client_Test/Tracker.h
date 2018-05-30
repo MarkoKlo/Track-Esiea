@@ -69,8 +69,14 @@ public:
 	Vec3i get_filter_color();
 	Vec3i get_filter_range();
 	Point3f get_2D_position();
-	Point3f get_position();
+	Point3f get_cam_position();
+	Point3f get_world_position();
 	Point3f get_speed();
+	// Retourne la position de la caméra en coordonnées absolues
+	Point3f get_camera_world_position();
+	void set_world_origin();
+	void set_world_zaxis();
+	void calibrate_camera_pose();
 	float get_tracking_rate();
 	bool is_tracking_valid();
 
@@ -85,6 +91,7 @@ public:
 
 	int resolutionX;
 	int resolutionY;
+
 	// Sauvegarde les valeurs actuelles dans un fichier de configuration
 	void save_params();
 
@@ -97,11 +104,13 @@ private :
 	Mat m_hsvFrame;
 	Mat m_filteredFrame;
 	Point3f m_2Dposition;
-	Point3f m_position;
+	Point3f m_cam_position;
+	Point3f m_world_position;
 	Point3f m_speed;
 
-	Mat camToWorld_rotation;
-	Point3f m_world_position;
+	Matx33f m_camToWorld_rotation;
+	Point3f m_cam_world_position;
+	Point3f m_world_z_axis;
 	Point3f m_world_origin;
 
 	bool m_isTrackingValid;
@@ -117,12 +126,12 @@ private :
 		Vec3i m_filterColor;
 
 	// Variables privées
-	Point3f* m_lastPosition;
+	Point3f m_lastPosition;
 	double m_deltaTime;
 	int64* m_currentTick;
 	int64* m_lastTick;
 
-	// Fonctions privées
+	/* Fonctions privées */
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
 	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
 	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
@@ -132,8 +141,10 @@ private :
 	// Ouvre un fichier de configuration et assigne les variables du programme en conséquence
 	void load_params();
 	// Retourne une matrice de rotation autour d'un axe et d'un angle theta
-	Matx33f Tracker::rotation_matrix(Point3f axis, float angle);
+	Matx33f rotation_matrix(Point3f axis, float angle);
 	// Détermine la matrice de rotation
-	void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis);
+	void compute_camToWorld_rotation_matrix(Vec3f z_world_axis);
+	// Transforme la position locale (caméra) en position absolue
+	Point3f get_world_position(Point3f localPosition);
 };
 

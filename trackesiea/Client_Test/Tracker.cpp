@@ -13,7 +13,7 @@ m_gain(8), initialized(false), resolutionX(640), resolutionY(480) // Constructeu
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
-	m_lastPosition = new Point3f(1, 1, 1);
+	m_lastPosition = Point3f(1, 1, 1);
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
@@ -21,7 +21,7 @@ Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(came
 {
 	set_filter_range(Vec3i(25,80,80) );
 	set_filter_color(Vec3i(255,255,255) );
-	m_lastPosition = new Point3f(1, 1, 1);
+	m_lastPosition = Point3f(1, 1, 1);
 }
 
 Tracker::~Tracker()
@@ -43,7 +43,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 #ifdef USE_PS3EYEDRIVER
 	ctx = new ps3eye_context(resolutionX, resolutionY, 60);
 	if (!ctx->hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
-	ctx->eye->setFlip(true); /* miroir left-right */
+	ctx->eye->setFlip(false); /* miroir left-right */
 	ctx->eye->setExposure(m_exposure);
 	ctx->eye->setGain(m_gain);
 	ctx->eye->setAutoWhiteBalance(false);
@@ -60,6 +60,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	m_currentTick = (int64*)malloc(sizeof(int64));
 	m_lastTick = (int64*)malloc(sizeof(int64));
 	initialized = true;
+	compute_camToWorld_rotation_matrix(Point3f(0, 0, 1));
 	track();
 }
 
@@ -79,29 +80,29 @@ void Tracker::track()
 		circle_fitting(m_2Dposition,m_filteredFrame); // Détection de la couleur
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position); // Estimation
 		set_delta_time(m_currentTick,m_lastTick);
-		
+
 		if (m_isTrackingValid)
 		{
 			switch (m_filteringType)
 			{
 			case simple_lowpass:
-				m_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition);
+				m_cam_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (m_lastPosition);
 				break;
 			case multi_channel_lowpass:
-				m_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition).x;
-				m_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (*m_lastPosition).y;
-				m_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (*m_lastPosition).z;
+				m_cam_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (m_lastPosition).x;
+				m_cam_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (m_lastPosition).y;
+				m_cam_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (m_lastPosition).z;
 				break;
 			case noFiltering:
-				m_position = raw_position;
+				m_cam_position = raw_position;
 				break;
 			}
-			
-			m_speed = (*m_lastPosition - m_position) / m_deltaTime;
+			m_world_position = get_world_position(m_cam_position);
+			m_speed = (m_lastPosition - m_cam_position) / m_deltaTime;
 		}
 
 		// Assignations de fin
-		*m_lastPosition = m_position;
+		m_lastPosition = m_cam_position;
 	}
 }
 
@@ -199,14 +200,40 @@ Point3f Tracker::get_2D_position()
 	return m_2Dposition;
 }
 
-Point3f Tracker::get_position()
+Point3f Tracker::get_cam_position()
 {
-	return m_position;
+	return m_cam_position;
+}
+
+Point3f Tracker::get_world_position()
+{
+	return m_world_position;
 }
 
 Point3f Tracker::get_speed()
 {
 	return m_speed;
+}
+
+Point3f Tracker::get_camera_world_position()
+{
+	return m_cam_world_position;
+}
+
+void Tracker::set_world_origin()
+{
+	m_world_origin = m_cam_position;
+}
+
+void Tracker::set_world_zaxis() // On récupère la position actuelle sachant que l'origine a déjà été sauvegardée
+{
+	m_world_z_axis = m_world_origin - m_cam_position;
+}
+
+void Tracker::calibrate_camera_pose()
+{
+	compute_camToWorld_rotation_matrix(m_world_z_axis);
+	m_cam_world_position = -m_world_origin;
 }
 
 float Tracker::get_tracking_rate()
@@ -219,8 +246,48 @@ bool Tracker::is_tracking_valid()
 	return m_isTrackingValid;
 }
 
+void Tracker::save_params()
+{
+	// Création de l'objet Configuration et ajout des groupes de paramètres
+	Config cfg;
+	Setting& root = cfg.getRoot();
+	Setting& camParams = root.add("camera", Setting::TypeGroup);
+	Setting& trackingParams = root.add("tracking", Setting::TypeGroup);
+	Setting& filterParams = trackingParams.add("filter", Setting::TypeGroup);
+
+	// Ajout des paramètres par défaut pour la partie caméra
+	camParams.add("resolutionX", Setting::TypeInt) = resolutionX;
+	camParams.add("resolutionY", Setting::TypeInt) = resolutionY;
+	camParams.add("gain", Setting::TypeInt) = m_gain;
+	camParams.add("exposure", Setting::TypeInt) = m_exposure;
+
+	// Ajout des paramètres par défaut pour la partie tracking
+	if (m_filteringType == simple_lowpass){ trackingParams.add("filterType", Setting::TypeString) = "simple_lowpass"; }
+	else if (m_filteringType == multi_channel_lowpass) { trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass"; }
+	else if (m_filteringType == noFiltering) { trackingParams.add("filterType", Setting::TypeString) = "noFiltering"; }
+
+	filterParams.add("colorHue", Setting::TypeInt) = m_filterColor.val[0];
+	filterParams.add("colorSat", Setting::TypeInt) = m_filterColor.val[1];
+	filterParams.add("colorVal", Setting::TypeInt) = m_filterColor.val[2];
+
+	filterParams.add("toleranceHue", Setting::TypeInt) = m_hsvRange.val[0];
+	filterParams.add("toleranceSat", Setting::TypeInt) = m_hsvRange.val[1];
+	filterParams.add("toleranceVal", Setting::TypeInt) = m_hsvRange.val[2];
+
+	try
+	{
+		cfg.writeFile(CONFIG_FILE_PATH);
+		cout << "Fichier configuration remplace : " << CONFIG_FILE_PATH << endl;
+
+	}
+	catch (const FileIOException &fioex)
+	{
+		cout << "Erreur d'ecriture de : " << CONFIG_FILE_PATH << endl;
+	}
+}
+
 /*
-FONCTIONS DE TRACKING PRIVEES
+FONCTIONS DE PRIVEES
 */
 
 void Tracker::color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor,Mat& filteredFrame) // Filtre la couleur
@@ -393,7 +460,7 @@ void Tracker::load_params()
 		filterParams.lookupValue("toleranceVal", v);
 		set_filter_range( Vec3i(h, s, v) );
 
-		cout << "Values correctely set : " << "H:" << m_filterColor.val[0] << " S:" << m_filterColor[1] << " V:" << m_filterColor[2] << endl;
+		cout << "Valeur couleur correctement chargées : " << "H:" << m_filterColor.val[0] << " S:" << m_filterColor[1] << " V:" << m_filterColor[2] << endl;
 	}
 	catch (const SettingNotFoundException &nfex)
 	{
@@ -401,45 +468,6 @@ void Tracker::load_params()
 	}
 }
 
-void Tracker::save_params()
-{
-	// Création de l'objet Configuration et ajout des groupes de paramètres
-	Config cfg;
-	Setting& root = cfg.getRoot();
-	Setting& camParams = root.add("camera", Setting::TypeGroup);
-	Setting& trackingParams = root.add("tracking", Setting::TypeGroup);
-	Setting& filterParams = trackingParams.add("filter", Setting::TypeGroup);
-
-	// Ajout des paramètres par défaut pour la partie caméra
-	camParams.add("resolutionX", Setting::TypeInt) = resolutionX;
-	camParams.add("resolutionY", Setting::TypeInt) = resolutionY;
-	camParams.add("gain", Setting::TypeInt) = m_gain;
-	camParams.add("exposure", Setting::TypeInt) = m_exposure;
-
-	// Ajout des paramètres par défaut pour la partie tracking
-	if (m_filteringType == simple_lowpass){ trackingParams.add("filterType", Setting::TypeString) = "simple_lowpass"; }
-	else if (m_filteringType == multi_channel_lowpass) { trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass"; }
-	else if (m_filteringType == noFiltering) { trackingParams.add("filterType", Setting::TypeString) = "noFiltering"; }
-
-	filterParams.add("colorHue", Setting::TypeInt) = m_filterColor.val[0];
-	filterParams.add("colorSat", Setting::TypeInt) = m_filterColor.val[1];
-	filterParams.add("colorVal", Setting::TypeInt) = m_filterColor.val[2];
-
-	filterParams.add("toleranceHue", Setting::TypeInt) = m_hsvRange.val[0];
-	filterParams.add("toleranceSat", Setting::TypeInt) = m_hsvRange.val[1];
-	filterParams.add("toleranceVal", Setting::TypeInt) = m_hsvRange.val[2];
-
-	try
-	{
-		cfg.writeFile(CONFIG_FILE_PATH);
-		cout << "Fichier configuration remplace : " << CONFIG_FILE_PATH << endl;
-
-	}
-	catch (const FileIOException &fioex)
-	{
-		cout << "Erreur d'ecriture de : " << CONFIG_FILE_PATH << endl;
-	}
-}
 
 // Maths : https://fr.wikipedia.org/wiki/Matrice_de_rotation
 Matx33f Tracker::rotation_matrix(Point3f axis, float angle)
@@ -448,43 +476,57 @@ Matx33f Tracker::rotation_matrix(Point3f axis, float angle)
 	float s = sin(angle);
 
 	//Matx33f mat = 
+	
 	Matx33f m(axis.x * axis.x * (1 - c) + c         , axis.x * axis.y * (1 - c) - axis.z * s , axis.x * axis.z * (1 - c) + axis.y * s,
 			  axis.x * axis.y * (1 - c) + axis.z * s, axis.y * axis.y * (1 - c) + c			 , axis.y * axis.z * (1 - c) - axis.x * s,
 			  axis.x * axis.z * (1 - c) - axis.y * s, axis.y * axis.z * (1 - c) + axis.x * s , axis.z * axis.z * (1 - c) + c			);
+	/* La matrice est stockée dans cet ordre : 1 2 3 4 5 6 7 8 9
+	Matx33f m(1,2,3,
+			  4,5,6,
+			  7,8,9);
+	*/
 
 	return m;
 }
 
 void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
 {
-	Point3f nwz = normalize(z_world_axis); // Normalized World Z - Axe Z absolu normalisé
 	Point3f cza = Point3f(0, 0, 1); // Camera Z Axis - Axe Z caméra
-	Point3f rotationAxis =
+	Point3f nwz = normalize(z_world_axis); // Normalized World Z - Axe Z absolu normalisé
+
+	Point3f rotationAxis = // L'axe de rotation autour duquel on va tourner l'axe Z Camera sur l'axe Z absolu
 	Point3f(nwz.y * cza.z - nwz.z * cza.y,
 		    nwz.z * cza.x - nwz.x * cza.z,
 		    nwz.x * cza.y - nwz.y * cza.x); // Produit vectoriel
+	rotationAxis = normalize(Vec3f(rotationAxis));
 
-	Matx33f tempRotMatrix = rotation_matrix(rotationAxis,0.0);
-	Point3f rCza = tempRotMatrix * cza; // rotated Cza
-	float dotProduct = nwz.x * rCza.x + nwz.y * rCza.y + nwz.z * rCza.z;
+	float dotProduct = nwz.x * cza.x + nwz.y * cza.y + nwz.z * cza.z; // Produit scalaire de Z caméra et Z absolu
+	float angle = acosf(dotProduct); // On calcule l'angle entre les deux
 
-	const float dotAccuracy = 0.1; float epsilon = 0.1; int counter = 0; float theta = PI / 2;
-	while (dotProduct < 1 - dotAccuracy && counter < 1000 ) // Tant que l'on a pas atteint une certaine précision
-	{
-		tempRotMatrix = rotation_matrix(rotationAxis, theta); // On calcule une nouvelle matrice de rotation avec theta
-		rCza = tempRotMatrix * cza; // On fait tourner le vecteur de theta
-		float newDotProduct = nwz.x * rCza.x + nwz.y * rCza.y + nwz.z * rCza.z; // On calcule le nouveau produit vectoriel obtenu
-		if(newDotProduct > dotProduct) // Si on s'approche du vecteur recherché
-		{
-			theta = theta + epsilon;
-		}
-		else 
-		{
-			epsilon = epsilon / 2;
-			theta = theta - epsilon;
-		}
+	// la matrice de rotation tourne dans la sens anti-horaire tandis que cos tourne dans le sens horaire
+	Matx33f tempRotMatrix = rotation_matrix(rotationAxis, -angle);
+	m_camToWorld_rotation = tempRotMatrix;
 
-	}
-	
+	// Debug
+	Point3f rCza = tempRotMatrix * cza; // On pivote l'axe Z caméra sur l'axe Z Absolu
+	cout << "\n*** CALCUL DE LA MATRICE DE ROTATION ***\n" << endl;
+	cout << "World Z : " << nwz.x << " " << nwz.y << " " << nwz.z << endl;
+	cout << "Camer Z : " << cza.x << " " << cza.y << " " << cza.z << endl;
+	cout << "RotAx Z : " << rotationAxis.x << " " << rotationAxis.y << " " << rotationAxis.z << endl;
+	cout << "Dot : " << dotProduct << endl;
+	cout << "Angle : " << angle << endl;
+	cout << "Matrice de rotation :" << endl;
+	cout << tempRotMatrix.val[0] << " " << tempRotMatrix.val[1] << " " << tempRotMatrix.val[2] << endl;
+	cout << tempRotMatrix.val[3] << " " << tempRotMatrix.val[4] << " " << tempRotMatrix.val[5] << endl;
+	cout << tempRotMatrix.val[6] << " " << tempRotMatrix.val[7] << " " << tempRotMatrix.val[8] << endl;
+	cout << "RotAx Z : " << rCza.x << " " << rCza.y << " " << rCza.z << endl;
+	cout << endl;
 
+}
+
+Point3f Tracker::get_world_position(Point3f localPosition)
+{
+	Point3f worldPos = localPosition - m_world_origin;
+	worldPos = m_camToWorld_rotation * worldPos;
+	return worldPos;
 }
