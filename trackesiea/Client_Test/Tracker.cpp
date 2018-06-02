@@ -43,7 +43,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 #ifdef USE_PS3EYEDRIVER
 	ctx = new ps3eye_context(resolutionX, resolutionY, 60);
 	if (!ctx->hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
-	ctx->eye->setFlip(false); /* miroir left-right */
+	ctx->eye->setFlip(true); /* miroir left-right */
 	ctx->eye->setExposure(m_exposure);
 	ctx->eye->setGain(m_gain);
 	ctx->eye->setAutoWhiteBalance(false);
@@ -60,7 +60,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	m_currentTick = (int64*)malloc(sizeof(int64));
 	m_lastTick = (int64*)malloc(sizeof(int64));
 	initialized = true;
-	compute_camToWorld_rotation_matrix(Point3f(0, 0, 1));
+	compute_camToWorld_rotation_matrix(m_world_z_axis);
 	track();
 }
 
@@ -255,11 +255,21 @@ void Tracker::save_params()
 	Setting& trackingParams = root.add("tracking", Setting::TypeGroup);
 	Setting& filterParams = trackingParams.add("filter", Setting::TypeGroup);
 
-	// Ajout des paramètres par défaut pour la partie caméra
+	// Ajout des paramètres pour la partie caméra
 	camParams.add("resolutionX", Setting::TypeInt) = resolutionX;
 	camParams.add("resolutionY", Setting::TypeInt) = resolutionY;
 	camParams.add("gain", Setting::TypeInt) = m_gain;
 	camParams.add("exposure", Setting::TypeInt) = m_exposure;
+
+	Setting& world_z_axis_setting = camParams.add("world_z_axis", Setting::TypeGroup);
+	world_z_axis_setting.add("x", Setting::TypeFloat) = m_world_z_axis.x;
+	world_z_axis_setting.add("y", Setting::TypeFloat) = m_world_z_axis.y;
+	world_z_axis_setting.add("z", Setting::TypeFloat) = m_world_z_axis.z;
+
+	Setting& world_z_origin_setting = camParams.add("world_origin", Setting::TypeGroup);
+	world_z_origin_setting.add("x", Setting::TypeFloat) = m_world_origin.x;
+	world_z_origin_setting.add("y", Setting::TypeFloat) = m_world_origin.y;
+	world_z_origin_setting.add("z", Setting::TypeFloat) = m_world_origin.z;
 
 	// Ajout des paramètres par défaut pour la partie tracking
 	if (m_filteringType == simple_lowpass){ trackingParams.add("filterType", Setting::TypeString) = "simple_lowpass"; }
@@ -389,6 +399,16 @@ void Tracker::new_file_params()
 	camParams.add("gain", Setting::TypeInt) = 10;
 	camParams.add("exposure", Setting::TypeInt) = 10;
 
+	Setting& world_z_axis_setting = camParams.add("world_z_axis", Setting::TypeGroup);
+	world_z_axis_setting.add("x", Setting::TypeFloat) = 0.0;
+	world_z_axis_setting.add("y", Setting::TypeFloat) = 0.0;
+	world_z_axis_setting.add("z", Setting::TypeFloat) = 1.0;
+
+	Setting& world_z_origin_setting = camParams.add("world_origin", Setting::TypeGroup);
+	world_z_origin_setting.add("x", Setting::TypeFloat) = 0.0;
+	world_z_origin_setting.add("y", Setting::TypeFloat) = 0.0;
+	world_z_origin_setting.add("z", Setting::TypeFloat) = 0.0;
+
 	// Ajout des paramètres par défaut pour la partie tracking
 	trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass";
 
@@ -441,6 +461,15 @@ void Tracker::load_params()
 		camParams.lookupValue("gain", m_gain);
 		camParams.lookupValue("exposure", m_exposure);
 
+		Setting& world_z_axis_setting = camParams["world_z_axis"];
+		world_z_axis_setting.lookupValue("x", m_world_z_axis.x);
+		world_z_axis_setting.lookupValue("y", m_world_z_axis.y);
+		world_z_axis_setting.lookupValue("z", m_world_z_axis.z);
+
+		Setting& world_z_origin_setting = camParams["world_origin"];
+		world_z_origin_setting.lookupValue("x", m_world_origin.x);
+		world_z_origin_setting.lookupValue("y", m_world_origin.y);
+		world_z_origin_setting.lookupValue("z", m_world_origin.z);
 
 		// Assignation des variables filtre
 		string filtertype;
