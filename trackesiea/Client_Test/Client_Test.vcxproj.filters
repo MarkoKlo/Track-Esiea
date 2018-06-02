@@ -13,6 +13,7 @@
     <ClCompile Include="..\PS3EYEDriver\src\ps3eye.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="Client_UI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="client_test.h">
@@ -28,6 +29,10 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\PS3EYEDriver\src\ps3eye.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Client_UI.h" />
+    <ClInclude Include="cvui.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
