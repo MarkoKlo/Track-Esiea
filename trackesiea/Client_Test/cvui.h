@@ -7,8 +7,10 @@
  Licensed under the MIT license.
 */
 
+#pragma once
 #ifndef _CVUI_H_
 #define _CVUI_H_
+
 
 #include <iostream>
 #include <vector>
@@ -1118,6 +1120,9 @@ namespace internal
 		int segments;
 		unsigned int options;
 		std::string labelFormat;
+
+		#undef min
+		#undef max
 
 		inline TrackbarParams()
 			: min(0.)

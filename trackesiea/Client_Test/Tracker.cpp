@@ -8,12 +8,13 @@ using namespace libconfig;
 Constructeurs
 */
 
-Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass), m_exposure(8),
-m_gain(8), initialized(false), resolutionX(640), resolutionY(480) // Constructeur par défaut
+Tracker::Tracker() : m_focalLength(PSEYE_FOCAL), m_ballRadius(BALL_RADIUS), m_filteringType(multi_channel_lowpass), m_exposure(10),
+m_gain(10), initialized(false), resolutionX(640), resolutionY(480) // Constructeur par défaut
 {
 	set_filter_range(Vec3i(25, 80, 80));
 	set_filter_color(Vec3i(255, 255, 255));
-	m_lastPosition = Point3f(1, 1, 1);
+	m_last_world_position = Point3f(1, 1, 1);
+	m_last_cam_position = Point3f(1, 1, 1);
 }
 
 Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(cameraFocalLength), m_ballRadius(ballRadius) // Constructeur
@@ -21,12 +22,13 @@ Tracker::Tracker(float ballRadius, float cameraFocalLength) : m_focalLength(came
 {
 	set_filter_range(Vec3i(25,80,80) );
 	set_filter_color(Vec3i(255,255,255) );
-	m_lastPosition = Point3f(1, 1, 1);
+	m_last_world_position = Point3f(1, 1, 1);
+	m_last_cam_position = Point3f(1, 1, 1);
 }
 
 Tracker::~Tracker()
 {
-	free(m_currentTick); free(m_lastTick);
+	//free(m_currentTick); free(m_lastTick);
 }
 
 /*
@@ -57,10 +59,10 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	m_videoCap.set(CAP_PROP_FRAME_WIDTH, 640);
 	m_videoCap.set(CAP_PROP_FRAME_HEIGHT, 480);
 #endif
-	m_currentTick = (int64*)malloc(sizeof(int64));
-	m_lastTick = (int64*)malloc(sizeof(int64));
+	//m_currentTick = (int64*)malloc(sizeof(int64));
+	//m_lastTick = (int64*)malloc(sizeof(int64));
 	initialized = true;
-	compute_camToWorld_rotation_matrix(m_world_z_axis);
+	calibrate_camera_pose();
 	track();
 }
 
@@ -71,38 +73,40 @@ void Tracker::track()
 #else
 	m_videoCap.read(m_videoFrame); // Lecture du flux camera
 #endif
-
 	if (!m_videoFrame.empty())
 	{
+		
 		// Calculs de positions
 		Point3f raw_position = Point3f(0, 0, 0);
 		color_filtering(m_videoFrame, m_hsvRange, m_filterColor, m_filteredFrame); // Filtrage de la couleur
 		circle_fitting(m_2Dposition,m_filteredFrame); // Détection de la couleur
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position); // Estimation
-		set_delta_time(m_currentTick,m_lastTick);
 
+		set_delta_time(m_currentTick,m_lastTick);
+		
 		if (m_isTrackingValid)
 		{
 			switch (m_filteringType)
 			{
 			case simple_lowpass:
-				m_cam_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (m_lastPosition);
+				m_cam_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position);
 				break;
 			case multi_channel_lowpass:
-				m_cam_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (m_lastPosition).x;
-				m_cam_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (m_lastPosition).y;
-				m_cam_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (m_lastPosition).z;
+				m_cam_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position).x;
+				m_cam_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position).y;
+				m_cam_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (m_last_cam_position).z;
 				break;
 			case noFiltering:
 				m_cam_position = raw_position;
 				break;
 			}
 			m_world_position = get_world_position(m_cam_position);
-			m_speed = (m_lastPosition - m_cam_position) / m_deltaTime;
+			m_speed = (m_last_world_position - m_world_position) / m_deltaTime;
 		}
-
 		// Assignations de fin
-		m_lastPosition = m_cam_position;
+		m_last_world_position = m_world_position;
+		m_last_cam_position = m_cam_position;
+		
 	}
 }
 
@@ -128,7 +132,7 @@ void Tracker::set_exposure(int exposure)
 {
 #ifdef USE_PS3EYEDRIVER
 	m_exposure = exposure;
-	ctx->eye->setGain(m_exposure);
+	ctx->eye->setExposure(m_exposure);
 #endif
 }
 
@@ -186,11 +190,11 @@ Mat& Tracker::get_binary_frame()
 	return m_filteredFrame;
 }
 
-void Tracker::set_delta_time(int64* cur, int64* las)
+void Tracker::set_delta_time(int64& cur, int64& las)
 {
-	(*las) = (*cur);
-	(*cur) = (int64)getTickCount();
-	double delta = (double)( (*cur) - (*las) ) ;
+	las = cur;
+	cur = (int64)getTickCount();
+	double delta = (double)( (cur) - (las) ) ;
 	delta = delta / getTickFrequency();
 	m_deltaTime = delta;
 }
@@ -213,6 +217,16 @@ Point3f Tracker::get_world_position()
 Point3f Tracker::get_speed()
 {
 	return m_speed;
+}
+
+int Tracker::get_gain()
+{
+	return m_gain;
+}
+
+int Tracker::get_exposure()
+{
+	return m_exposure;
 }
 
 Point3f Tracker::get_camera_world_position()
@@ -336,11 +350,14 @@ void Tracker::circle_fitting(Point3f& circleCoord,Mat& filteredFrame) // Donne l
 	// Recherche des contours dans l'image binaire
 	findContours(filteredFrame, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
 	// Si aucun contour, ne rien faire
-	if (contours.size() <= 0) { return; }
+	if (contours.size() <= 0) { m_isTrackingValid = false; return; }
 	// Sinon trouver le contour le plus grand et calculer le cercle englobant
 	vector<Point> largestContour = get_largest_contour(contours);
 	minEnclosingCircle(largestContour, position, radius);
 
+	// Vérification si le rayon est valide (supérieur à 5 pixel et inférieur à 240 pixels)
+	if (radius < 5 || radius > 240) { m_isTrackingValid = false; return; }
+	else { m_isTrackingValid = true; }
 	circleCoord.x = position.x;
 	circleCoord.y = position.y;
 	circleCoord.z = radius;
@@ -349,10 +366,6 @@ void Tracker::circle_fitting(Point3f& circleCoord,Mat& filteredFrame) // Donne l
 void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition)
 {
 	float radius = circleCoord.z;
-
-	// Vérification si le rayon est valide (supérieur à 1 pixel et inférieur à 240 pixels)
-	if (radius < 1 || radius > 240) { m_isTrackingValid = false; return; }
-	else { m_isTrackingValid = true; }
 
 	// Centrage de la position
 	float x_px = circleCoord.x - 320; // Résolution hardcodée -> à changer
@@ -533,7 +546,7 @@ void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
 	float angle = acosf(dotProduct); // On calcule l'angle entre les deux
 
 	// la matrice de rotation tourne dans la sens anti-horaire tandis que cos tourne dans le sens horaire
-	Matx33f tempRotMatrix = rotation_matrix(rotationAxis, -angle);
+	Matx33f tempRotMatrix = rotation_matrix(rotationAxis, angle);
 	m_camToWorld_rotation = tempRotMatrix;
 
 	// Debug

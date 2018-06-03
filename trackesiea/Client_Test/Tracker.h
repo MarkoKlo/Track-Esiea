@@ -72,6 +72,8 @@ public:
 	Point3f get_cam_position();
 	Point3f get_world_position();
 	Point3f get_speed();
+	int get_gain();
+	int get_exposure();
 	// Retourne la position de la caméra en coordonnées absolues
 	Point3f get_camera_world_position();
 	void set_world_origin();
@@ -87,7 +89,7 @@ public:
 	enum filterType{simple_lowpass,multi_channel_lowpass,noFiltering};
 	filterType m_filteringType;
 
-	void set_delta_time(int64* m_currentTick,int64* las);
+	void set_delta_time(int64& m_currentTick,int64& las);
 
 	int resolutionX;
 	int resolutionY;
@@ -126,10 +128,11 @@ private :
 		Vec3i m_filterColor;
 
 	// Variables privées
-	Point3f m_lastPosition;
+	Point3f m_last_world_position;
+	Point3f m_last_cam_position;
 	double m_deltaTime;
-	int64* m_currentTick;
-	int64* m_lastTick;
+	int64 m_currentTick;
+	int64 m_lastTick;
 
 	/* Fonctions privées */
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);

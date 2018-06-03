@@ -1,18 +1,13 @@
-//#include<opencv2/opencv.hpp>
-//#include<opencv2\core\core.hpp>
+#pragma once
 #include "client_test.h"
 #include<iostream>
 #include<cstdio>
 #include<math.h>
-#include<opencv2\opencv.hpp>
 
 #include"Tracker.h"
-#include"counter_test.h"
 
-#define BALL_SIZE 4.0
-#define BALL_RADIUS 2.0
-#define TEST_FOCAL_LENGTH 263.75
-#define FOCAL_LENGTH_PIXEL 550.0
+#define CVUI_IMPLEMENTATION
+#include"Client_UI.h"
 
 using namespace std;
 using namespace cv;
@@ -34,75 +29,20 @@ int showFilter = 0;
 bool showCircle = false;
 Point3f trackedPos;
 
+Client_UI client;
 Tracker tracker;
 int alpha;
-counter_test counte;
 
-void onMouseEventMenu(int event, int x, int y, int flags, void* userdata) //
+void initialization()
 {
-	if (event == EVENT_LBUTTONUP) {
-		if (x > 11 && x < 628 && y>267 && y < 374) { // Sauvegarde
-			tracker.save_params();
-		}
-		if (x > 0 && x < 85 && y>588 && y < 640) { // Origine
-			tracker.set_world_origin();
-		}
-		if (x > 104 && x < 183 && y>588 && y < 640) { // Zaxis
-			tracker.set_world_zaxis();
-			tracker.calibrate_camera_pose();
-		}
-		
-		if (x > 12 && x < 301 && y>409 && y < 516) { showFilter = !showFilter; } // Activer/Desactiver le filtre
-		if (x > 339 && x < 628 && y>409 && y < 516) { showCircle = !showCircle; } // Afficher le cercle
-		if (x > 387 && x < 601 && y>571 && y < 608) { currentMode = -1;} // Quitter
-	}
-}
-void onMouseEventFilteredCam(int event, int x, int y, int flags, void* userdata)
-{
-	if (event == EVENT_LBUTTONUP)
-	{
-		Vec3i color = tracker.get_hsv_color(Point2i(x, y));
-		printf_s("Couleur changee : %d %d %d \n", color.val[0], color.val[1], color.val[2]);
-		tracker.set_filter_color(color);
-
-	}
+	tracker.init_tracker(0,false);
+	client.initialize();
+	client.tracker = &tracker;
 }
 
-void showGraph()
+void runTracker()
 {
-	Point3f speed = tracker.get_speed();
-	Mat debugGraphFrame = debugGraph.clone();
-	Point3f camPosition = tracker.get_camera_world_position();
-	circle(debugGraphFrame, Point((trackedPos.x*5.0 + 500), trackedPos.z*5.0+500), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Debug
-	circle(debugGraphFrame, Point((camPosition.x*5.0 + 500), camPosition.z*5.0 + 500), 2, Scalar(255, 255, 0), 2, -1, 0); // CameraPosition
-	char debugText[100]; sprintf_s(debugText, "X:%.1fcm  Y:%.1fcm Z: %.1fcm dX:%.1fcm  dY:%.1fcm dZ: %.1fcm", trackedPos.x, trackedPos.y, trackedPos.z,
-	speed.x,speed.y, speed.z);
-	putText(debugGraphFrame, debugText, Point2i(10, 975), CV_FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 0, 0), 2, LINE_AA);
-	imshow("position_graph", debugGraphFrame);
-}
-
-void showfilteredCam()
-{
-	Mat frame,thresholdedFrame;
-
-	setMouseCallback("cam_show", onMouseEventFilteredCam, &frame);
-	createTrackbar("Hue Range", "cam_show", &hsvRange[0], 255, NULL);
-	createTrackbar("Saturation Range", "cam_show", &hsvRange[1], 255, NULL);
-	createTrackbar("Value Range", "cam_show", &hsvRange[2], 255, NULL);
-	tracker.set_filter_range(hsvRange);
 	tracker.track();
-	Point3f trackedPos2D = tracker.get_2D_position();
-	trackedPos = tracker.get_world_position();
-	frame = tracker.get_video_frame();
-	thresholdedFrame = tracker.get_binary_frame();
-	//cout << "Tracking Rate: " << tracker.get_tracking_rate() << endl;
-	counte.track();
-	showGraph();
-
-	if (showCircle) { circle(frame, Point(trackedPos2D.x, trackedPos2D.y), trackedPos2D.z, Scalar(0, 0, 255), 1, CV_AA, 0); }
-	if (showFilter == 0)
-	{imshow("cam_show", frame);}
-	else if (showFilter == 1) {imshow("cam_show", thresholdedFrame);}
 }
 
 int main(int argc, char** argv)
@@ -110,40 +50,16 @@ int main(int argc, char** argv)
 	// cout est le flux de texte du terminal, '<<' permet d'injecter un élément dans cout, endl correspond à la fin de ligne
 	cout << "Track'ESIEA est un pst de 2A qui vise a effectuer le tracking 3D d'un objet dans un espace delimite." << endl; 
 	cout << "Librairie utilisée : OpenCV." << endl;
-	waitKey(0);
-
-	Mat menuBackground = imread("images/menu.jpg"); // Chargement de l'image
-	if (!menuBackground.data) // Sécurité
-	{
-		cout << "Impossible d'ouvrir le menu." << endl;
-		waitKey(1000);
-		return -1;
-	}
-
-	debugGraph = imread("images/repere.jpg"); // Chargement de l'image
-	if (!menuBackground.data) // Sécurité
-	{
-		cout << "Impossible d'ouvrir l'image." << endl;
-		waitKey(1000);
-		return -1;
-	}
-	int cameraIndex = 0;
-
-	namedWindow("client_test", WINDOW_AUTOSIZE);
-	imshow("client_test", menuBackground);
-
-	tracker.init_tracker(cameraIndex, false);
-
-	int input = 0;
-	hsvRange = tracker.get_filter_range();
-	trackedPos.x = 0; trackedPos.y = 0;
 	
-	setMouseCallback("client_test", onMouseEventMenu, NULL);
-	float e1, e2, time;
-
-	while (input != 'q' && currentMode != -1 )
+	bool exit = false;
+	int input;
+	initialization();
+	while (!exit )
 	{
-		showfilteredCam();input = waitKey(10);
+		input = waitKey(1);
+		runTracker();
+		client.run(exit,input);
 	}
+	
 	return 0;
 }
