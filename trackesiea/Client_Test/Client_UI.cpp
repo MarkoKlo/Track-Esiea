@@ -50,7 +50,7 @@ void Client_UI::run(bool & exit, int input)
 		camera_tab();
 		break;
 	case options :
-		options_tab();
+		options_tab(exit);
 		break;
 	}
 
@@ -92,7 +92,7 @@ void Client_UI::status_field()
 
 	// Rendu de l'icone statut
 	if(!tracker->is_tracking_valid()){ cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[2]); }
-	else if(tracking_speed > 50){cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[0]); }
+	else if(tracking_speed > 49){cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[0]); }
 	else { cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[1]); }
 	
 
@@ -167,8 +167,8 @@ void Client_UI::tracking_tab()
 		Point3f cam_position = tracker->get_camera_world_position();
 		Point3f ball_position = tracker->get_world_position();
 		Point3f ball_speed = tracker->get_speed();
-		circle(debugGraphFrame, Point((ball_position.x*2.5 + 250), ball_position.z*2.5 + 250), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Balle
-		circle(debugGraphFrame, Point((cam_position.x*2.5 + 250), cam_position.z*2.5 + 250), 2, Scalar(255, 255, 0), 2, -1, 0); // CameraPosition
+		circle(debugGraphFrame, Point((ball_position.x*2.5 + 250), -ball_position.z*2.5 + 250), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Balle
+		circle(debugGraphFrame, Point((cam_position.x*2.5 + 250), -cam_position.z*2.5 + 250), 2, Scalar(255, 255, 0), 2, -1, 0); // CameraPosition
 		cv::resize(debugGraphFrame, debugGraphFrame, Size(RESX*videoScale, RESX*videoScale));
 		cvui::image(frame, videoX, videoY, debugGraphFrame);
 
@@ -267,6 +267,7 @@ void Client_UI::camera_tab()
 	tracker->set_exposure(exposure);
 }
 
-void Client_UI::options_tab()
+void Client_UI::options_tab(bool &exit)
 {
+	if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Fermer Track'ESIEA")) { exit = true; }
 }

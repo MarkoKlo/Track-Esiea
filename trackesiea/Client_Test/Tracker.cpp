@@ -45,7 +45,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 #ifdef USE_PS3EYEDRIVER
 	ctx = new ps3eye_context(resolutionX, resolutionY, 60);
 	if (!ctx->hasDevices()) {printf("Aucune PS3Eye connectée !\n"); return;}
-	ctx->eye->setFlip(true); /* miroir left-right */
+	ctx->eye->setFlip(false); /* miroir left-right */
 	ctx->eye->setExposure(m_exposure);
 	ctx->eye->setGain(m_gain);
 	ctx->eye->setAutoWhiteBalance(false);
@@ -237,17 +237,20 @@ Point3f Tracker::get_camera_world_position()
 void Tracker::set_world_origin()
 {
 	m_world_origin = m_cam_position;
+	cout << "Set world origin : " << m_world_origin << endl;
 }
 
 void Tracker::set_world_zaxis() // On récupère la position actuelle sachant que l'origine a déjà été sauvegardée
 {
-	m_world_z_axis = m_world_origin - m_cam_position;
+	m_world_z_axis = m_cam_position - m_world_origin;
+	cout << "Z+ Point : " << m_cam_position << endl;
+	cout << "Set world Z axis : " << m_world_z_axis << endl;
 }
 
 void Tracker::calibrate_camera_pose()
 {
 	compute_camToWorld_rotation_matrix(m_world_z_axis);
-	m_cam_world_position = -m_world_origin;
+	m_cam_world_position = m_world_origin;
 }
 
 float Tracker::get_tracking_rate()
@@ -556,7 +559,7 @@ void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
 	cout << "Camer Z : " << cza.x << " " << cza.y << " " << cza.z << endl;
 	cout << "RotAx Z : " << rotationAxis.x << " " << rotationAxis.y << " " << rotationAxis.z << endl;
 	cout << "Dot : " << dotProduct << endl;
-	cout << "Angle : " << angle << endl;
+	cout << "Angle (rad) : " << angle << " (deg) : " << angle * 57.2958 << endl;
 	cout << "Matrice de rotation :" << endl;
 	cout << tempRotMatrix.val[0] << " " << tempRotMatrix.val[1] << " " << tempRotMatrix.val[2] << endl;
 	cout << tempRotMatrix.val[3] << " " << tempRotMatrix.val[4] << " " << tempRotMatrix.val[5] << endl;

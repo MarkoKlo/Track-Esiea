@@ -48,6 +48,6 @@ private:
 	bool showCircle;
 	unsigned int getHexaColor();
 
-	void options_tab();
+	void options_tab(bool &exit);
 };
 
