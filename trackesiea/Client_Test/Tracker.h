@@ -51,6 +51,23 @@ Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
 
 using namespace cv;
 
+
+struct tracked_ball {
+
+	Vec3i m_hsvRange;
+	Vec3i m_filterColor;
+
+	Point3f position2D;
+	Point3f local_position;
+	Point3f world_position;
+	Point3f speed;
+	bool isTrackingValid;
+
+	Point3f m_last_world_position;
+	Point3f m_last_local_position;
+
+};
+
 //Membres de la classe Tracker
 class Tracker
 {
