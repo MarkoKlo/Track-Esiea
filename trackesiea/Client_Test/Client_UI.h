@@ -37,7 +37,7 @@ private:
 	Mat windowGrid;
 	bool calibration_mode;
 	int calibration_step;
-	Mat calibration_image[3];
+	Mat calibration_image[4];
 
 	void camera_tab();
 	Mat windowVideo;

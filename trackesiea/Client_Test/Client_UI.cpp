@@ -32,6 +32,7 @@ void Client_UI::initialize()
 	cv::resize(cv::imread("images/calib_image1.jpg", cv::IMREAD_COLOR), calibration_image[0], Size(RESX*0.4, RESX*0.4));
 	cv::resize(cv::imread("images/calib_image2.jpg", cv::IMREAD_COLOR), calibration_image[1], Size(RESX*0.4, RESX*0.4));
 	cv::resize(cv::imread("images/calib_image3.jpg", cv::IMREAD_COLOR), calibration_image[2], Size(RESX*0.4, RESX*0.4));
+	cv::resize(cv::imread("images/calib_image4.jpg", cv::IMREAD_COLOR), calibration_image[3], Size(RESX*0.4, RESX*0.4));
 }
 
 void Client_UI::run(bool & exit, int input)
@@ -139,20 +140,33 @@ void Client_UI::tracking_tab()
 			break;
 		case 1 :
 			cvui::image(frame, RESX*0.3, RESY*0.35, calibration_image[1]);
-			cvui::printf(frame, RESX*0.7375, RESY*0.36, TEXT_SCALE * 0.5, 0xa6a6a8,                   "Maintenant, deplacez");
-			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "la balle vers l'avant");
-			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 60, TEXT_SCALE * 0.5, 0xa6a6a8, "de la zone, puis cliquez");
-			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 90, TEXT_SCALE * 0.5, 0xa6a6a8, "sur Calibrer l'axe Z.");
-			if (cvui::button(frame, RESX*0.7375, RESY*0.55, RESX*0.1875, RESY*0.05, "Calibrer l'axe Z"))
+			cvui::printf(frame, RESX*0.7375, RESY*0.36, TEXT_SCALE * 0.5, 0xa6a6a8,                   "Maintenant, placez");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "la balle a droite");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 60, TEXT_SCALE * 0.5, 0xa6a6a8, "du centre, puis cliquez");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 90, TEXT_SCALE * 0.5, 0xa6a6a8, "sur Calibrer l'axe X.");
+			if (cvui::button(frame, RESX*0.7375, RESY*0.55, RESX*0.1875, RESY*0.05, "Calibrer l'axe X"))
 			{
-				tracker->set_world_zaxis();
-				tracker->calibrate_camera_pose();
+				tracker->set_world_xaxis();
 				calibration_step = 2;
 			}
 			if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Annuler")) { calibration_mode = false; }
 			break;
 		case 2:
 			cvui::image(frame, RESX*0.3, RESY*0.35, calibration_image[2]);
+			cvui::printf(frame, RESX*0.7375, RESY*0.36, TEXT_SCALE * 0.5, 0xa6a6a8, "Ensuite, placez");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "la balle a l'avant");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 60, TEXT_SCALE * 0.5, 0xa6a6a8, "du centre, puis cliquez");
+			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 90, TEXT_SCALE * 0.5, 0xa6a6a8, "sur Calibrer l'axe Z.");
+			if (cvui::button(frame, RESX*0.7375, RESY*0.55, RESX*0.1875, RESY*0.05, "Calibrer l'axe Z"))
+			{
+				tracker->set_world_zaxis();
+				tracker->calibrate_camera_pose();
+				calibration_step = 3;
+			}
+			if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Annuler")) { calibration_mode = false; }
+			break;
+		case 3:
+			cvui::image(frame, RESX*0.3, RESY*0.35, calibration_image[3]);
 			cvui::printf(frame, RESX*0.7375, RESY*0.36, TEXT_SCALE * 0.5, 0xa6a6a8,                   "Calibration terminee !");
 			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "Vous pouvez maintenant");
 			cvui::printf(frame, RESX*0.7375, RESY*0.36 + TEXT_SCALE * 60, TEXT_SCALE * 0.5, 0xa6a6a8, "cliquer sur le bouton");

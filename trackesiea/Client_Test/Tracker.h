@@ -78,6 +78,7 @@ public:
 	Point3f get_camera_world_position();
 	void set_world_origin();
 	void set_world_zaxis();
+	void set_world_xaxis();
 	void calibrate_camera_pose();
 	float get_tracking_rate();
 	bool is_tracking_valid();
@@ -112,6 +113,7 @@ private :
 
 	Matx33f m_camToWorld_rotation;
 	Point3f m_cam_world_position;
+	Point3f m_world_x_axis;
 	Point3f m_world_z_axis;
 	Point3f m_world_origin;
 
@@ -145,8 +147,10 @@ private :
 	void load_params();
 	// Retourne une matrice de rotation autour d'un axe et d'un angle theta
 	Matx33f rotation_matrix(Point3f axis, float angle);
+	// Produit vectoriel
+	Vec3f crossProduct(Point3f a, Point3f b);
 	// Détermine la matrice de rotation
-	void compute_camToWorld_rotation_matrix(Vec3f z_world_axis);
+	void compute_camToWorld_rotation_matrix(Vec3f z_world_axis, Vec3f x_world_axis, Vec3f world_origin);
 	// Transforme la position locale (caméra) en position absolue
 	Point3f get_world_position(Point3f localPosition);
 };

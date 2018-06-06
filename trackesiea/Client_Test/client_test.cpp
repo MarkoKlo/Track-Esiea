@@ -22,9 +22,14 @@ Client_UI client_ui;
 Tracker tracker;
 void initialization()
 {
+	cout << "\nInitialisation du tracker..." << endl;
 	tracker.init_tracker(0,false);
+	cout << "Initialisation du tracker avec succes !\n" << endl;
+
+	cout << "Initialisation de l'interface..." << endl;
 	client_ui.initialize();
 	client_ui.tracker = &tracker;
+	cout << "Succes !" << endl;
 }
 
 void runTracker()
@@ -41,7 +46,7 @@ bool initSocket()
 	
 	WORD version = MAKEWORD(2, 2);
 	int wsOk = WSAStartup(version, &ws_data);
-	if (wsOk != 0) { cout << "Can't start Winsock! " << wsOk; return false; }
+	if (wsOk != 0) { cout << "Impossible de demarrer Winsock! " << wsOk; return false; }
 
 	server.sin_family = AF_INET; // AF_INET = IPv4 addresses
 	server.sin_port = htons(1010); // Little to big endian conversion
@@ -49,6 +54,7 @@ bool initSocket()
 
 	// Socket creation, note that the socket type is datagram
 	out = socket(AF_INET, SOCK_DGRAM, 0);
+	cout << "Creation du socket reussie !" << endl;
 	return true;
 }
 
@@ -78,10 +84,11 @@ int main(int argc, char** argv)
 	int input;
 	initialization();
 	initSocket();
+	cout << "Initialisation termine" << endl;
 
 	while (!exit )
 	{
-		input = waitKey(1); if (input == 'q') { exit = true; }
+		input = waitKey(1); //if (input == 'q') { exit = true; }
 		runTracker();
 		client_ui.run(exit,input);
 		runSocket();

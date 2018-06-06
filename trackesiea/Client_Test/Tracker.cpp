@@ -240,16 +240,25 @@ void Tracker::set_world_origin()
 	cout << "Set world origin : " << m_world_origin << endl;
 }
 
+void Tracker::set_world_xaxis()
+{
+	m_world_x_axis = m_cam_position - m_world_origin;
+	m_world_x_axis = normalize((Vec3f)m_world_x_axis);
+	cout << "X+ Point : " << m_cam_position << endl;
+	cout << "Set world X axis : " << m_world_x_axis << endl;
+}
+
 void Tracker::set_world_zaxis() // On récupère la position actuelle sachant que l'origine a déjà été sauvegardée
 {
 	m_world_z_axis = m_cam_position - m_world_origin;
+	m_world_z_axis = normalize( (Vec3f) m_world_z_axis);
 	cout << "Z+ Point : " << m_cam_position << endl;
 	cout << "Set world Z axis : " << m_world_z_axis << endl;
 }
 
 void Tracker::calibrate_camera_pose()
 {
-	compute_camToWorld_rotation_matrix(m_world_z_axis);
+	compute_camToWorld_rotation_matrix(m_world_z_axis,m_world_x_axis,m_world_origin);
 	m_cam_world_position = m_world_origin;
 }
 
@@ -277,6 +286,11 @@ void Tracker::save_params()
 	camParams.add("resolutionY", Setting::TypeInt) = resolutionY;
 	camParams.add("gain", Setting::TypeInt) = m_gain;
 	camParams.add("exposure", Setting::TypeInt) = m_exposure;
+
+	Setting& world_x_axis_setting = camParams.add("world_x_axis", Setting::TypeGroup);
+	world_x_axis_setting.add("x", Setting::TypeFloat) = m_world_x_axis.x;
+	world_x_axis_setting.add("y", Setting::TypeFloat) = m_world_x_axis.y;
+	world_x_axis_setting.add("z", Setting::TypeFloat) = m_world_x_axis.z;
 
 	Setting& world_z_axis_setting = camParams.add("world_z_axis", Setting::TypeGroup);
 	world_z_axis_setting.add("x", Setting::TypeFloat) = m_world_z_axis.x;
@@ -415,6 +429,11 @@ void Tracker::new_file_params()
 	camParams.add("gain", Setting::TypeInt) = 10;
 	camParams.add("exposure", Setting::TypeInt) = 10;
 
+	Setting& world_x_axis_setting = camParams.add("world_x_axis", Setting::TypeGroup);
+	world_x_axis_setting.add("x", Setting::TypeFloat) = 1.0;
+	world_x_axis_setting.add("y", Setting::TypeFloat) = 0.0;
+	world_x_axis_setting.add("z", Setting::TypeFloat) = 0.0;
+
 	Setting& world_z_axis_setting = camParams.add("world_z_axis", Setting::TypeGroup);
 	world_z_axis_setting.add("x", Setting::TypeFloat) = 0.0;
 	world_z_axis_setting.add("y", Setting::TypeFloat) = 0.0;
@@ -477,6 +496,11 @@ void Tracker::load_params()
 		camParams.lookupValue("gain", m_gain);
 		camParams.lookupValue("exposure", m_exposure);
 
+		Setting& world_x_axis_setting = camParams["world_x_axis"];
+		world_x_axis_setting.lookupValue("x", m_world_x_axis.x);
+		world_x_axis_setting.lookupValue("y", m_world_x_axis.y);
+		world_x_axis_setting.lookupValue("z", m_world_x_axis.z);
+
 		Setting& world_z_axis_setting = camParams["world_z_axis"];
 		world_z_axis_setting.lookupValue("x", m_world_z_axis.x);
 		world_z_axis_setting.lookupValue("y", m_world_z_axis.y);
@@ -534,37 +558,54 @@ Matx33f Tracker::rotation_matrix(Point3f axis, float angle)
 	return m;
 }
 
-void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis)
+Vec3f Tracker::crossProduct(Point3f a, Point3f b)
 {
-	Point3f cza = Point3f(0, 0, 1); // Camera Z Axis - Axe Z caméra
-	Point3f nwz = normalize(z_world_axis); // Normalized World Z - Axe Z absolu normalisé
+	return Vec3f(a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x);
+}
 
-	Point3f rotationAxis = // L'axe de rotation autour duquel on va tourner l'axe Z Camera sur l'axe Z absolu
-	Point3f(nwz.y * cza.z - nwz.z * cza.y,
-		    nwz.z * cza.x - nwz.x * cza.z,
-		    nwz.x * cza.y - nwz.y * cza.x); // Produit vectoriel
-	rotationAxis = normalize(Vec3f(rotationAxis));
+void Tracker::compute_camToWorld_rotation_matrix(Vec3f z_world_axis, Vec3f x_world_axis, Vec3f world_origin)
+{
+	// Axes de la caméra en coordonnées locales (base Caméra)
+	Vec3f cameraXAxisInCameraCoord = Point3f(1,0,0);
+	Vec3f cameraZAxisInCameraCoord = Point3f(0,0,1);
+	Vec3f cameraYAxisInCameraCoord = normalize( crossProduct(cameraZAxisInCameraCoord,cameraXAxisInCameraCoord) );
 
-	float dotProduct = nwz.x * cza.x + nwz.y * cza.y + nwz.z * cza.z; // Produit scalaire de Z caméra et Z absolu
-	float angle = acosf(dotProduct); // On calcule l'angle entre les deux
+	// On assigne l'origine en coordonnées locales
+	Vec3f originInCameraCoord = world_origin;
 
-	// la matrice de rotation tourne dans la sens anti-horaire tandis que cos tourne dans le sens horaire
-	Matx33f tempRotMatrix = rotation_matrix(rotationAxis, angle);
-	m_camToWorld_rotation = tempRotMatrix;
+	// On assigne l'axe Z en coordonnées locales
+	Point3f worldZAxisInCameraCoord = normalize(z_world_axis);
 
-	// Debug
-	Point3f rCza = tempRotMatrix * cza; // On pivote l'axe Z caméra sur l'axe Z Absolu
-	cout << "\n*** CALCUL DE LA MATRICE DE ROTATION ***\n" << endl;
-	cout << "World Z : " << nwz.x << " " << nwz.y << " " << nwz.z << endl;
-	cout << "Camer Z : " << cza.x << " " << cza.y << " " << cza.z << endl;
-	cout << "RotAx Z : " << rotationAxis.x << " " << rotationAxis.y << " " << rotationAxis.z << endl;
-	cout << "Dot : " << dotProduct << endl;
-	cout << "Angle (rad) : " << angle << " (deg) : " << angle * 57.2958 << endl;
-	cout << "Matrice de rotation :" << endl;
-	cout << tempRotMatrix.val[0] << " " << tempRotMatrix.val[1] << " " << tempRotMatrix.val[2] << endl;
-	cout << tempRotMatrix.val[3] << " " << tempRotMatrix.val[4] << " " << tempRotMatrix.val[5] << endl;
-	cout << tempRotMatrix.val[6] << " " << tempRotMatrix.val[7] << " " << tempRotMatrix.val[8] << endl;
-	cout << "RotAx Z : " << rCza.x << " " << rCza.y << " " << rCza.z << endl;
+	// On assigne l'axe X selon la calibration et on calcule l'axe Y
+	Vec3f notOrthoWorldXAxisInCameraCoord = normalize(x_world_axis);
+	Point3f worldYAxisInCameraCoord = normalize( crossProduct(worldZAxisInCameraCoord, notOrthoWorldXAxisInCameraCoord) );
+	// On calcule le vrai axe X, orthonormal à l'axe Y et Z
+	Point3f worldXAxisInCameraCoord = normalize( crossProduct(worldYAxisInCameraCoord,worldZAxisInCameraCoord) );
+
+	// On calcule la matrice de passage de la base locale (base caméra) à la base absolue (base monde calibrée)
+	Matx33f transferMatrix(worldXAxisInCameraCoord.x, worldYAxisInCameraCoord.x, worldZAxisInCameraCoord.x,
+						  worldXAxisInCameraCoord.y, worldYAxisInCameraCoord.y, worldZAxisInCameraCoord.y,
+						  worldXAxisInCameraCoord.z, worldYAxisInCameraCoord.z, worldZAxisInCameraCoord.z );
+
+	// On transpose la matrice car dans OpenCV, les vecteurs sont des vecteurs lignes et non colonne
+	transpose(transferMatrix, m_camToWorld_rotation);
+
+	// Affichage du Debug
+	cout << "\n*** CALCUL DE LA MATRICE DE PASSAGE ***\n" << endl;
+
+	cout << "Camer X : " << cameraXAxisInCameraCoord << endl;
+	cout << "Camer Y : " << cameraYAxisInCameraCoord << endl;
+	cout << "Camer Z : " << cameraZAxisInCameraCoord << endl;
+
+	cout << "World X : " << worldXAxisInCameraCoord << endl;
+	cout << "World Y : " << worldYAxisInCameraCoord << endl;
+	cout << "World Z : " << worldZAxisInCameraCoord << endl;
+
+	cout << "Matrice de passage :" << endl;
+	cout << m_camToWorld_rotation << endl;
+
 	cout << endl;
 
 }
