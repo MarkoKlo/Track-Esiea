@@ -49,5 +49,6 @@ private:
 	unsigned int getHexaColor();
 
 	void options_tab(bool &exit);
+	bool hqTracking;
 };
 

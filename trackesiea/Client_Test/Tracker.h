@@ -1,6 +1,7 @@
 #pragma once
 #include<iostream>
 #include<cstdio>
+#include<stack>
 #include<math.h>
 #include<opencv2\opencv.hpp>
 #include<opencv2\world.hpp>
@@ -12,8 +13,9 @@
 #define PSEYE_FOCAL 550.0
 #define USE_PS3EYEDRIVER
 
+// Valeur plus basse -> Filtrage plus important
 #define LOWPASS_ALPHA 0.5
-#define Z_LOWPASS_SMOOTHING 0.5
+#define Z_LOWPASS_SMOOTHING 0.33
 
 #define CONFIG_FILE_PATH "configuration.cfg"
 
@@ -81,6 +83,7 @@ public:
 	void set_filter_range(Vec3i hsvrange);
 	void set_gain(int gain);
 	void set_exposure(int exposure);
+	void set_hq_tracking(bool hqTracking);
 	Vec3i get_hsv_color(Point2i coordinates);
 	Vec3i get_fullscreen_average_hsv_color();
 	Vec3i get_filter_color();
@@ -98,6 +101,8 @@ public:
 	void set_world_xaxis();
 	void calibrate_camera_pose();
 	float get_tracking_rate();
+	Point3f get_variance();
+	bool is_hq_tracking();
 	bool is_tracking_valid();
 
 	Mat& get_video_frame();
@@ -127,6 +132,7 @@ private :
 	Point3f m_cam_position;
 	Point3f m_world_position;
 	Point3f m_speed;
+	std::deque<Point3f> m_last_world_positions;
 
 	Matx33f m_camToWorld_rotation;
 	Point3f m_cam_world_position;
@@ -138,6 +144,7 @@ private :
 	float m_trackingRate;
 	int m_exposure;
 	int m_gain;
+	bool m_hqTracking;
 
 	// Réglages
 	float m_focalLength;
@@ -156,8 +163,12 @@ private :
 	/* Fonctions privées */
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
 	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
+	void circle_refining(Point3f& circleCoord, Mat& hsvFrame, Vec3i color, Vec3i colorRange);
+	
 	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
 	std::vector<Point> get_largest_contour(std::vector<std::vector<Point> > contours);
+	// Enfile les dernières positions dans la file
+	void stackPositions(Point3f pos, std::deque<Point3f>& q, int size);
 	// Crée un nouveau fichier de configuration avec les paramètres par défaut
 	void new_file_params();
 	// Ouvre un fichier de configuration et assigne les variables du programme en conséquence

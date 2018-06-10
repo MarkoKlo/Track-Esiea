@@ -63,6 +63,7 @@ void Tracker::init_tracker(int cameraIndex, bool stereo) // Initialisation du tr
 	//m_lastTick = (int64*)malloc(sizeof(int64));
 	initialized = true;
 	calibrate_camera_pose();
+
 	track();
 }
 
@@ -80,10 +81,11 @@ void Tracker::track()
 		Point3f raw_position = Point3f(0, 0, 0);
 		color_filtering(m_videoFrame, m_hsvRange, m_filterColor, m_filteredFrame); // Filtrage de la couleur
 		circle_fitting(m_2Dposition,m_filteredFrame); // Détection de la couleur
+		if (m_hqTracking) { circle_refining(m_2Dposition, m_hsvFrame, m_filterColor, m_hsvRange); }
 		mono_position_estimation(m_focalLength, m_2Dposition, raw_position); // Estimation
 
 		set_delta_time(m_currentTick,m_lastTick);
-		
+		float alpha = LOWPASS_ALPHA;
 		if (m_isTrackingValid)
 		{
 			switch (m_filteringType)
@@ -92,9 +94,9 @@ void Tracker::track()
 				m_cam_position = LOWPASS_ALPHA * raw_position + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position);
 				break;
 			case multi_channel_lowpass:
-				m_cam_position.x = LOWPASS_ALPHA * raw_position.x + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position).x;
-				m_cam_position.y = LOWPASS_ALPHA * raw_position.y + (1.0 - LOWPASS_ALPHA) * (m_last_cam_position).y;
-				m_cam_position.z = LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - LOWPASS_ALPHA * Z_LOWPASS_SMOOTHING) * (m_last_cam_position).z;
+				m_cam_position.x = alpha * raw_position.x + (1.0 - alpha) * (m_last_cam_position).x;
+				m_cam_position.y = alpha * raw_position.y + (1.0 - alpha) * (m_last_cam_position).y;
+				m_cam_position.z = alpha * Z_LOWPASS_SMOOTHING * raw_position.z + (1.0 - alpha * Z_LOWPASS_SMOOTHING) * (m_last_cam_position).z;
 				break;
 			case noFiltering:
 				m_cam_position = raw_position;
@@ -104,8 +106,11 @@ void Tracker::track()
 			m_speed = (m_last_world_position - m_world_position) / m_deltaTime;
 		}
 		// Assignations de fin
+		stackPositions(m_world_position, m_last_world_positions, 300);
+		get_variance();
 		m_last_world_position = m_world_position;
 		m_last_cam_position = m_cam_position;
+
 		
 	}
 }
@@ -134,6 +139,11 @@ void Tracker::set_exposure(int exposure)
 	m_exposure = exposure;
 	ctx->eye->setExposure(m_exposure);
 #endif
+}
+
+void Tracker::set_hq_tracking(bool hqTracking)
+{
+	m_hqTracking = hqTracking;
 }
 
 Vec3i Tracker::get_hsv_color(Point2i coordinates)
@@ -219,6 +229,26 @@ Point3f Tracker::get_speed()
 	return m_speed;
 }
 
+Point3f Tracker::get_variance()
+{
+	int i; Point3f average = Point3f(0,0,0); Point3f variance = Point3f(0,0,0);
+	for (i = 0; i < m_last_world_positions.size(); i++)
+	{
+		average += m_last_world_positions[i];
+	}
+	average /= (int)m_last_world_positions.size();
+	
+	for (i = 0; i < m_last_world_positions.size(); i++)
+	{
+		variance.x = std::pow(m_last_world_positions[i].x - average.x, 2);
+		variance.y = std::pow(m_last_world_positions[i].y - average.y, 2);
+		variance.z = std::pow(m_last_world_positions[i].z - average.z, 2);
+	}
+	variance /= (int)m_last_world_positions.size();
+
+	return variance;
+}
+
 int Tracker::get_gain()
 {
 	return m_gain;
@@ -267,6 +297,11 @@ float Tracker::get_tracking_rate()
 	return 1.0 / m_deltaTime;
 }
 
+bool Tracker::is_hq_tracking()
+{
+	return m_hqTracking;
+}
+
 bool Tracker::is_tracking_valid()
 {
 	return m_isTrackingValid;
@@ -306,6 +341,7 @@ void Tracker::save_params()
 	if (m_filteringType == simple_lowpass){ trackingParams.add("filterType", Setting::TypeString) = "simple_lowpass"; }
 	else if (m_filteringType == multi_channel_lowpass) { trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass"; }
 	else if (m_filteringType == noFiltering) { trackingParams.add("filterType", Setting::TypeString) = "noFiltering"; }
+	trackingParams.add("hq_tracking", Setting::TypeBoolean) = m_hqTracking;
 
 	filterParams.add("colorHue", Setting::TypeInt) = m_filterColor.val[0];
 	filterParams.add("colorSat", Setting::TypeInt) = m_filterColor.val[1];
@@ -330,6 +366,71 @@ void Tracker::save_params()
 /*
 FONCTIONS DE PRIVEES
 */
+typedef cv::Point3_<uint8_t> Pixel;
+
+struct SmoothInRange {
+
+	Vec3i color;
+	Vec3i colorRange;
+	void operator ()(Pixel &pixel, const int * position) const {
+
+		const int lowerBoundary = color.val[2] - colorRange.val[2];
+
+		if (pixel.x > color.val[0] - colorRange.val[0] && pixel.x < color.val[0] + colorRange.val[0]
+			&& pixel.y > color.val[1] - colorRange.val[1] && pixel.y < color.val[1] + colorRange.val[1])
+		{
+			pixel.y = 0;
+			if (pixel.z > color.val[2] + colorRange.val[2]) { pixel.z = 0; }
+			else if (pixel.z < lowerBoundary) {
+				int p = 255 - 2 * (lowerBoundary - pixel.z);
+				p = p < 0 ? 0 : p;
+				pixel.z = p;
+			}
+			else { pixel.z = 255;}
+		}
+		else { pixel.x = 0; pixel.y = 0; pixel.z = 0; }
+	}
+};
+
+void Tracker::circle_refining(Point3f & circleCoord, Mat & hsvFrame, Vec3i color, Vec3i colorRange)
+{
+	if (!m_isTrackingValid) return;
+	// Calcul de la position et de la taille du ROI
+	int X = circleCoord.x - circleCoord.z * 2.0f; X = X < 0 ? 0 : X;
+	int Y = circleCoord.y - circleCoord.z * 2.0f; Y = Y < 0 ? 0 : Y;
+	int width = 2.0 * circleCoord.z * 2.0f;
+	if (X + width > hsvFrame.cols || Y + width > hsvFrame.rows) { return; }
+
+	Rect roiPos = Rect(X, Y, width, width);
+	Mat ROI = hsvFrame(roiPos);
+
+	// Threshold non binaire de l'image
+	SmoothInRange inRange = SmoothInRange();
+	inRange.color = color;
+	inRange.colorRange = colorRange;
+	ROI.forEach<Pixel>(inRange);
+
+	// Calcul du centre de la masse
+	Point2f refinedPos = Point2f(0,0);
+	float areaPixel = 0;
+	int x = 0;int y = 0;
+	for (Pixel &p : cv::Mat_<Pixel>(ROI)) {
+		refinedPos.x += x * (p.z/255);
+		refinedPos.y += y * (p.z / 255);
+		areaPixel += (p.z / 255);
+
+		x++;
+		if (x >= ROI.cols) {x = 0; y++;}
+	}
+	y = y - 1;
+	refinedPos /= areaPixel;
+	float radius = sqrt(areaPixel/PI);
+	
+	cvtColor(ROI, ROI, CV_HSV2BGR);
+	if(circleCoord.z/radius > 0.5 || circleCoord.z / radius < 1.2)
+	{circleCoord = Point3f(X + refinedPos.x, Y + refinedPos.y, radius);}
+	//{circleCoord = Point3f(circleCoord.x, circleCoord.y, radius);}
+}
 
 void Tracker::color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor,Mat& filteredFrame) // Filtre la couleur
 {
@@ -414,6 +515,12 @@ void Tracker::mono_position_estimation(float focal, Point3f circleCoord, Point3f
 	outPosition.z = Z_cm;
 }
 
+void Tracker::stackPositions(Point3f pos, std::deque<Point3f>& q, int size)
+{
+	q.push_front(pos);
+	if (q.size() > size) { q.pop_back(); }
+}
+
 void Tracker::new_file_params()
 {
 	// Création de l'objet Configuration et ajout des groupes de paramètres
@@ -446,6 +553,7 @@ void Tracker::new_file_params()
 
 	// Ajout des paramètres par défaut pour la partie tracking
 	trackingParams.add("filterType", Setting::TypeString) = "multi_channel_lowpass";
+	trackingParams.add("hq_tracking", Setting::TypeBoolean) = false;
 
 	filterParams.add("colorHue", Setting::TypeInt) = 0;
 	filterParams.add("colorSat", Setting::TypeInt) = 100;
@@ -517,7 +625,8 @@ void Tracker::load_params()
 		if (filtertype == "simple_lowpass") { m_filteringType = simple_lowpass; }
 		else if (filtertype == "multi_channel_lowpass") { m_filteringType = multi_channel_lowpass; }
 		else if (filtertype == "noFiltering") { m_filteringType = noFiltering; }
-	
+		trackingParams.lookupValue("hq_tracking", m_hqTracking);
+
 		int h, s, v;
 		filterParams.lookupValue("colorHue", h);
 		filterParams.lookupValue("colorSat", s);

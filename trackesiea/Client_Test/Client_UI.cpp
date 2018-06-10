@@ -33,6 +33,8 @@ void Client_UI::initialize()
 	cv::resize(cv::imread("images/calib_image2.jpg", cv::IMREAD_COLOR), calibration_image[1], Size(RESX*0.4, RESX*0.4));
 	cv::resize(cv::imread("images/calib_image3.jpg", cv::IMREAD_COLOR), calibration_image[2], Size(RESX*0.4, RESX*0.4));
 	cv::resize(cv::imread("images/calib_image4.jpg", cv::IMREAD_COLOR), calibration_image[3], Size(RESX*0.4, RESX*0.4));
+
+	hqTracking = tracker->is_hq_tracking();
 }
 
 void Client_UI::run(bool & exit, int input)
@@ -283,5 +285,9 @@ void Client_UI::camera_tab()
 
 void Client_UI::options_tab(bool &exit)
 {
-	if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Fermer Track'ESIEA")) { exit = true; }
+	cvui::beginColumn(frame, RESX*0.3, RESY*0.35, -1, -1, RESY*0.025);
+	cvui::checkbox("Tracking haute qualite (experimental) ", &hqTracking, 0xa6a6a8);
+	tracker->set_hq_tracking(hqTracking);
+	cvui::endColumn();
+	if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Fermer Track'ESIEA")) { tracker->save_params(); exit = true; }
 }

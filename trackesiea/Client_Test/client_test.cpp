@@ -27,8 +27,9 @@ void initialization()
 	cout << "Initialisation du tracker avec succes !\n" << endl;
 
 	cout << "Initialisation de l'interface..." << endl;
-	client_ui.initialize();
 	client_ui.tracker = &tracker;
+	client_ui.initialize();
+	
 	cout << "Succes !" << endl;
 }
 
