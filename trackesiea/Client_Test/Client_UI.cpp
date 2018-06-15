@@ -5,9 +5,11 @@
 #define RESY 768
 #define TEXT_SCALE (RESX/800.0)
 
-Client_UI::Client_UI() : filterRange(-1,-1,-1), gain(-1),exposure(-1),showBinary(false), showCircle(false), calibration_mode(false), calibration_step(0),
-current_tab(tracking)
+Client_UI::Client_UI() : gain(-1),exposure(-1),showBinary(false), showCircle(false), calibration_mode(false), calibration_step(0),
+current_tab(tracking), currentBall(0)
 {
+	filterRange[0] = Point3i(-1, -1, -1);
+	filterRange[1] = Point3i(-1, -1, -1);
 }
 
 
@@ -87,14 +89,14 @@ void Client_UI::status_field()
 	cvui::beginColumn(frame, RESX*0.8, RESY*0.029, -1, -1, RESY*0.0583);
 	cvui::printf(TEXT_SCALE, 0xa6a6a8,"%.1f", tracking_speed);
 	cvui::printf(TEXT_SCALE, 0xa6a6a8, "1");
-		if (!tracker->is_tracking_valid()) { cvui::printf(TEXT_SCALE, 0xa6a6a8, "AUCUN"); }
+		if (!tracker->is_tracking_valid(0)) { cvui::printf(TEXT_SCALE, 0xa6a6a8, "AUCUN"); }
 		else if (tracking_speed > 50){cvui::printf(TEXT_SCALE, 0xa6a6a8, "BON");}
 		else if (tracking_speed > 25) { cvui::printf(TEXT_SCALE, 0xa6a6a8, "MOYEN"); }
 		else { cvui::printf(TEXT_SCALE, 0xa6a6a8, "MAUVAIS"); }
 	cvui::endColumn();
 
 	// Rendu de l'icone statut
-	if(!tracker->is_tracking_valid()){ cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[2]); }
+	if(!tracker->is_tracking_valid(0)){ cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[2]); }
 	else if(tracking_speed > 49){cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[0]); }
 	else { cvui::image(frame, RESX*0.02125, RESY*0.029, tracking_status_image[1]); }
 	
@@ -181,15 +183,18 @@ void Client_UI::tracking_tab()
 	{
 		Mat debugGraphFrame = grid.clone();
 		Point3f cam_position = tracker->get_camera_world_position();
-		Point3f ball_position = tracker->get_world_position();
-		Point3f ball_speed = tracker->get_speed();
-		circle(debugGraphFrame, Point((ball_position.x*2.5 + 250), -ball_position.z*2.5 + 250), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Balle
+		Point3f ball_position1 = tracker->get_world_position(0);
+		Point3f ball_speed1 = tracker->get_speed(0);
+		Point3f ball_position2 = tracker->get_world_position(1);
+		Point3f ball_speed2 = tracker->get_speed(1);
+		circle(debugGraphFrame, Point((ball_position1.x*2.5 + 250), -ball_position1.z*2.5 + 250), 2, Scalar(0, 0, 255), 2, -1, 0); // XZ Balle
+		circle(debugGraphFrame, Point((ball_position2.x*2.5 + 250), -ball_position2.z*2.5 + 250), 2, Scalar(255, 0, 255), 2, -1, 0); // XZ Balle
 		circle(debugGraphFrame, Point((cam_position.x*2.5 + 250), -cam_position.z*2.5 + 250), 2, Scalar(255, 255, 0), 2, -1, 0); // CameraPosition
 		cv::resize(debugGraphFrame, debugGraphFrame, Size(RESX*videoScale, RESX*videoScale));
 		cvui::image(frame, videoX, videoY, debugGraphFrame);
 
-		cvui::printf(frame, RESX*0.3, RESY*0.9, TEXT_SCALE * 0.5, 0xa6a6a8, "Position Monde (cm) : %.f %.f %.f", ball_position.x, ball_position.y, ball_position.z);
-		cvui::printf(frame, RESX*0.3, RESY*0.9 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "Vitesse (m/s) : %.f %.f %.f", ball_speed.x / 100, ball_speed.y / 100, ball_speed.z / 100);
+		cvui::printf(frame, RESX*0.3, RESY*0.9, TEXT_SCALE * 0.5, 0xa6a6a8, "Position Monde (cm) : %.f %.f %.f", ball_position1.x, ball_position1.y, ball_position1.z);
+		cvui::printf(frame, RESX*0.3, RESY*0.9 + TEXT_SCALE * 30, TEXT_SCALE * 0.5, 0xa6a6a8, "Vitesse (m/s) : %.f %.f %.f", ball_speed1.x / 100, ball_speed1.y / 100, ball_speed1.z / 100);
 	
 		if (cvui::button(frame, RESX*0.7375, RESY*0.36, RESX*0.1875, RESY*0.05, "Calibrer la position 3D"))
 		{
@@ -199,10 +204,10 @@ void Client_UI::tracking_tab()
 
 }
 
-unsigned int Client_UI::getHexaColor()
+unsigned int Client_UI::getHexaColor(int index)
 {
 	Mat col = Mat(1,1,CV_8UC3);
-	col.at<Vec3b>(0, 0) = tracker->get_filter_color();
+	col.at<Vec3b>(0, 0) = tracker->get_filter_color(index);
 	cv::cvtColor(col,col,CV_HSV2RGB);
 	Vec3b new_col = col.at<Vec3b>(0, 0);
 	unsigned int col_hex = (( new_col.val[0] & 0xff) << 16) + ((new_col.val[1] & 0xff) << 8) + (new_col.val[2] & 0xff);
@@ -211,10 +216,16 @@ unsigned int Client_UI::getHexaColor()
 
 void Client_UI::camera_tab()
 {
-	if (filterRange == Point3i(-1, -1, -1)) { filterRange = tracker->get_filter_range(); }
+	if (filterRange[0] == Point3i(-1, -1, -1)) { filterRange[0] = tracker->get_filter_range(0); }
+	if (filterRange[1] == Point3i(-1, -1, -1)) { filterRange[1] = tracker->get_filter_range(1); }
 	if (gain == -1 || exposure == -1) { gain = tracker->get_gain(); exposure = tracker->get_exposure(); }
 
 	cvui::beginColumn(frame, RESX*0.7375, RESY*0.35, -1, -1,RESY*0.025);
+		cvui::beginColumn(RESX*0.125, RESY*0.083, 0);
+		cvui::text("ID Balle :", TEXT_SCALE*0.5, 0xa6a6a8);
+		cvui::trackbar(RESX*0.1875, &currentBall, (int)0, (int)1, 1, "%d",cvui::TRACKBAR_HIDE_SEGMENT_LABELS);
+		cvui::endColumn();
+
 		cvui::beginColumn(RESX*0.125, RESY*0.083, 0);
 		cvui::text("Gain :", TEXT_SCALE*0.5, 0xa6a6a8);
 		cvui::trackbar(RESX*0.1875, &gain, (int)0, (int)30,1,"",cvui::TRACKBAR_HIDE_LABELS);
@@ -227,17 +238,17 @@ void Client_UI::camera_tab()
 
 		cvui::beginColumn(RESX*0.125, RESY*0.083, RESY*0.008);
 		cvui::text("Tolerance teinte :", TEXT_SCALE*0.5, 0xa6a6a8);
-		cvui::trackbar(RESX*0.1875, &filterRange.x,(int)0,(int)255);
+		cvui::trackbar(RESX*0.1875, &filterRange[currentBall].x,(int)0,(int)255);
 		cvui::endColumn();
 
 		cvui::beginColumn(RESX*0.125, RESY*0.083, RESY*0.008);
 		cvui::text("Tolerance saturation :", TEXT_SCALE*0.5, 0xa6a6a8);
-		cvui::trackbar(RESX*0.1875, &filterRange.y, (int)0, (int)255);
+		cvui::trackbar(RESX*0.1875, &filterRange[currentBall].y, (int)0, (int)255);
 		cvui::endColumn();
 
 		cvui::beginColumn(RESX*0.125, RESY*0.083, RESY*0.008);
 		cvui::text("Tolerance valeur :", TEXT_SCALE*0.5, 0xa6a6a8);
-		cvui::trackbar(RESX*0.1875, &filterRange.z, (int)0, (int)255);
+		cvui::trackbar(RESX*0.1875, &filterRange[currentBall].z, (int)0, (int)255);
 		cvui::endColumn();
 		
 	cvui::endColumn();
@@ -249,18 +260,18 @@ void Client_UI::camera_tab()
 	cvui::checkbox(frame, RESX*0.31 + TEXT_SCALE * 200, RESY*0.8 + TEXT_SCALE * 30 + TEXT_SCALE * 2, "", &showCircle, 0xa6a6a8);
 
 	cvui::text(frame, RESX*0.31, RESY*0.8 + TEXT_SCALE * 60, "Couleur du filtre :", TEXT_SCALE*0.5, 0xa6a6a8);
-	cvui::rect(frame, RESX*0.31 + TEXT_SCALE * 200, RESY*0.8 + TEXT_SCALE * 60 + TEXT_SCALE * 2, 15,15, 0xa6a6a8, getHexaColor() );
+	cvui::rect(frame, RESX*0.31 + TEXT_SCALE * 200, RESY*0.8 + TEXT_SCALE * 60 + TEXT_SCALE * 2, 15,15, 0xa6a6a8, getHexaColor(currentBall) );
 
-	if (cvui::button(frame, RESX*0.78, RESY*0.92, RESX*0.1875, RESY*0.05, "Sauvegarder")) { tracker->save_params();}
+	if (cvui::button(frame, RESX*0.31, RESY*0.94, RESX*0.1875, RESY*0.05, "Sauvegarder")) { tracker->save_params();}
 
 	// Image caméra
 	const int videoX = RESX * 0.3;
 	const int videoY = RESY * 0.35;
 	const float videoScale = 0.4;
-	if(showBinary){cv::cvtColor(tracker->get_binary_frame(), windowVideo, CV_GRAY2BGR);}
+	if(showBinary){cv::cvtColor(tracker->get_binary_frame(currentBall), windowVideo, CV_GRAY2BGR);}
 	else { windowVideo = tracker->get_video_frame(); }
-	if(showCircle && tracker->is_tracking_valid() )
-	{ circle(windowVideo, Point(tracker->get_2D_position().x, tracker->get_2D_position().y), tracker->get_2D_position().z, Scalar(0, 0, 255), 1, CV_AA, 0); }
+	if(showCircle && tracker->is_tracking_valid(currentBall) )
+	{ circle(windowVideo, Point(tracker->get_2D_position(currentBall).x, tracker->get_2D_position(currentBall).y), tracker->get_2D_position(currentBall).z, Scalar(0, 0, 255), 1, CV_AA, 0); }
 	cv::resize( windowVideo , windowVideo, Size(RESX*videoScale, RESY*videoScale));
 
 	cvui::image(frame, videoX, videoY, windowVideo);
@@ -274,11 +285,11 @@ void Client_UI::camera_tab()
 			Point2i mouse_video_pos = Point2i((cursor.x - videoX) * 640 / (RESX*videoScale), (cursor.y - videoY) * 480 / (RESY*videoScale));
 			Vec3i color = tracker->get_hsv_color(mouse_video_pos);
 			printf_s("Couleur changee : %d %d %d à %d %d \n", color.val[0], color.val[1], color.val[2], mouse_video_pos.x, mouse_video_pos.y);
-			tracker->set_filter_color(color);
+			tracker->set_filter_color(currentBall,color);
 		}
 	}
 	
-	tracker->set_filter_range(filterRange);
+	tracker->set_filter_range(currentBall,filterRange[currentBall]);
 	tracker->set_gain(gain);
 	tracker->set_exposure(exposure);
 }

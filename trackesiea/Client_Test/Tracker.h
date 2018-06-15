@@ -54,10 +54,10 @@ Cette classe a pour rôle d'effectuer le tracking 3D de la sphère.
 using namespace cv;
 
 
-struct tracked_ball {
+struct TrackedBall {
 
-	Vec3i m_hsvRange;
-	Vec3i m_filterColor;
+	Vec3i hsvRange;
+	Vec3i filterColor;
 
 	Point3f position2D;
 	Point3f local_position;
@@ -65,8 +65,11 @@ struct tracked_ball {
 	Point3f speed;
 	bool isTrackingValid;
 
-	Point3f m_last_world_position;
-	Point3f m_last_local_position;
+	Point3f last_world_position;
+	Point3f last_local_position;
+
+	Mat filteredFrame;
+	std::deque<Point3f> last_world_positions;
 
 };
 
@@ -79,19 +82,19 @@ public:
 	Tracker::~Tracker();
 	void init_tracker(int cameraIndex,bool stereo);
 	void track();
-	void set_filter_color(Vec3i color);
-	void set_filter_range(Vec3i hsvrange);
+	void set_filter_color(int index,Vec3i color);
+	void set_filter_range(int index,Vec3i hsvrange);
 	void set_gain(int gain);
 	void set_exposure(int exposure);
 	void set_hq_tracking(bool hqTracking);
 	Vec3i get_hsv_color(Point2i coordinates);
 	Vec3i get_fullscreen_average_hsv_color();
-	Vec3i get_filter_color();
-	Vec3i get_filter_range();
-	Point3f get_2D_position();
-	Point3f get_cam_position();
-	Point3f get_world_position();
-	Point3f get_speed();
+	Vec3i get_filter_color(int index);
+	Vec3i get_filter_range(int index);
+	Point3f get_2D_position(int index);
+	Point3f get_cam_position(int index);
+	Point3f get_world_position(int index);
+	Point3f get_speed(int index);
 	int get_gain();
 	int get_exposure();
 	// Retourne la position de la caméra en coordonnées absolues
@@ -103,10 +106,10 @@ public:
 	float get_tracking_rate();
 	Point3f get_variance();
 	bool is_hq_tracking();
-	bool is_tracking_valid();
+	bool is_tracking_valid(int index);
 
 	Mat& get_video_frame();
-	Mat& get_binary_frame();
+	Mat& get_binary_frame(int index);
 	Mat& get_hsv_frame();
 
 	enum filterType{simple_lowpass,multi_channel_lowpass,noFiltering};
@@ -127,12 +130,7 @@ private :
 	VideoCapture m_videoCap;
 	Mat m_videoFrame;
 	Mat m_hsvFrame;
-	Mat m_filteredFrame;
-	Point3f m_2Dposition;
-	Point3f m_cam_position;
-	Point3f m_world_position;
-	Point3f m_speed;
-	std::deque<Point3f> m_last_world_positions;
+	TrackedBall m_trackedBall[2];
 
 	Matx33f m_camToWorld_rotation;
 	Point3f m_cam_world_position;
@@ -140,7 +138,6 @@ private :
 	Point3f m_world_z_axis;
 	Point3f m_world_origin;
 
-	bool m_isTrackingValid;
 	float m_trackingRate;
 	int m_exposure;
 	int m_gain;
@@ -149,21 +146,16 @@ private :
 	// Réglages
 	float m_focalLength;
 	float m_ballRadius;
-	Vec3i m_hsvRange;
-		// En espace HSV
-		Vec3i m_filterColor;
 
 	// Variables privées
-	Point3f m_last_world_position;
-	Point3f m_last_cam_position;
 	double m_deltaTime;
 	int64 m_currentTick;
 	int64 m_lastTick;
 
 	/* Fonctions privées */
 	void color_filtering(Mat& videoFrame, Vec3i hsvRange, Scalar filterColor, Mat& filteredFrame);
-	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame);
-	void circle_refining(Point3f& circleCoord, Mat& hsvFrame, Vec3i color, Vec3i colorRange);
+	void circle_fitting(Point3f& circleCoord, Mat& filteredFrame, bool& trackingValid);
+	void circle_refining(Point3f& circleCoord, Mat& hsvFrame, Vec3i color, Vec3i colorRange, bool& trackingValid);
 	
 	void mono_position_estimation(float focal, Point3f circleCoord, Point3f& outPosition);
 	std::vector<Point> get_largest_contour(std::vector<std::vector<Point> > contours);

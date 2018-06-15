@@ -40,13 +40,14 @@ private:
 	Mat calibration_image[4];
 
 	void camera_tab();
+	int currentBall;
 	Mat windowVideo;
-	cv::Point3i filterRange;
+	cv::Point3i filterRange[2];
 	int gain;
 	int exposure;
 	bool showBinary;
 	bool showCircle;
-	unsigned int getHexaColor();
+	unsigned int getHexaColor(int index);
 
 	void options_tab(bool &exit);
 	bool hqTracking;

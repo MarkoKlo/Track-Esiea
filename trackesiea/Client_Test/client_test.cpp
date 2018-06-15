@@ -61,18 +61,21 @@ bool initSocket()
 
 void runSocket()
 {
-	char msg[64];
-	cv::Point3f pos = tracker.get_world_position();
-	cv::Point3f speed = tracker.get_speed();
-	sprintf_s(msg, "%.2f %.2f %.2f %.2f %.2f %.2f %d", pos.x, pos.y, pos.z,speed.x,speed.y,speed.z,tracker.is_tracking_valid() );
-	// Write out to that socket
-	string s(msg);
-	int sendOk = sendto(out, s.c_str(), s.size() + 1, 0, (sockaddr*)&server, sizeof(server));
+		char msg[82];
 
-	if (sendOk == SOCKET_ERROR)
-	{
-		cout << "Erreur d'envoi : " << WSAGetLastError() << endl;
-	}
+		cv::Point3f pos1 = tracker.get_world_position(0); cv::Point3f pos2 = tracker.get_world_position(1);
+		cv::Point3f speed1 = tracker.get_speed(0); cv::Point3f speed2 = tracker.get_speed(1);
+		sprintf_s(msg, "%.1f %.1f %.1f %.1f %.1f %.1f %d %.1f %.1f %.1f %.1f %.1f %.1f %d", pos1.x, pos1.y, pos1.z, speed1.x, speed1.y, speed1.z, tracker.is_tracking_valid(0),
+			pos2.x, pos2.y, pos2.z, speed2.x, speed2.y, speed2.z, tracker.is_tracking_valid(1) );
+		// Write out to that socket
+		string s(msg);
+		int sendOk = sendto(out, s.c_str(), s.size() + 1, 0, (sockaddr*)&server, sizeof(server));
+
+		if (sendOk == SOCKET_ERROR)
+		{
+			cout << "Erreur d'envoi : " << WSAGetLastError() << endl;
+		}
+	
 }
 
 int main(int argc, char** argv)
